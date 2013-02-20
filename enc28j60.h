@@ -27,6 +27,8 @@
 #ifndef ENC28J60_H
 #define ENC28J60_H
 
+#include <stdint.h>
+
 // ENC28J60 Control Registers
 // Control register definitions are a combination of address,
 // bank number, and Ethernet/MAC/PHY indicator bits.
@@ -266,48 +268,22 @@
 #define ENC28J60_MAC5 0xc2
 #endif
 
-// functions
-// setup ports for I/O
-
-//! set a MAC-Address
-void nicSetMacAddress( void );
-//! do a ENC28J60 read operation
-unsigned char enc28j60ReadOp( unsigned char op,  unsigned char address);
-//! do a ENC28J60 write operation
-void enc28j60WriteOp( unsigned char op,  unsigned char address,  unsigned char data);
-//! read the packet buffer memory
-void enc28j60ReadBuffer( unsigned int len,  unsigned char* data);
-//! write the packet buffer memory
-void enc28j60WriteBuffer( unsigned int len,  unsigned char* data);
-//! set the register bank for register at address
-void enc28j60SetBank( unsigned char address);
-//! read ax88796 register
-unsigned char enc28j60Read( unsigned char address);
-//! write ax88796 register
-void enc28j60Write( unsigned char address, unsigned char data);
-//! read a PHY register
-unsigned int enc28j60PhyRead( unsigned char address);
-//! write a PHY register
-void enc28j60PhyWrite( unsigned char address,  unsigned int data);
+void nicSetMacAddress( void ); /* FIXME */
+uint8_t enc28j60ReadOp(uint8_t, uint8_t);
+void enc28j60WriteOp(uint8_t, uint8_t, uint8_t);
+void enc28j60ReadBuffer(uint16_t, uint8_t*);
+void enc28j60WriteBuffer(uint16_t, uint8_t*);
+void enc28j60SetBank(uint8_t);
+uint8_t enc28j60Read(uint8_t);
+void enc28j60Write(uint8_t, uint8_t);
+uint16_t enc28j60PhyRead(uint8_t);
+void enc28j60PhyWrite(uint8_t, uint16_t);
 
 //! initialize the ethernet interface for transmit/receive
-void enc28j60Init(void);
+void enc28j60Init();
 
-//! Packet transmit function.
-/// Sends a packet on the network.  It is assumed that the packet is headed by a valid ethernet header.
-/// \param len		Length of packet in bytes.
-/// \param packet	Pointer to packet data.
-void enc28j60PacketSend(unsigned int len, unsigned char* packet);
-
-//! Packet receive function.
-/// Gets a packet from the network receive buffer, if one is available.
-/// The packet will by headed by an ethernet header.
-/// \param	maxlen	The maximum acceptable length of a retrieved packet.
-/// \param	packet	Pointer where packet data should be stored.
-/// \return Packet length in bytes if a packet was retrieved, zero otherwise.
-unsigned int enc28j60PacketReceive(unsigned int maxlen, unsigned char* packet);
-
-unsigned int enc28j60PacketReceiveLenght( void );
+void enc28j60PacketSend(uint16_t, uint8_t*);
+uint16_t enc28j60PacketReceive(uint16_t, uint8_t*);
 
 #endif
 //@}

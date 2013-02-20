@@ -22,9 +22,8 @@
 #include "spi.h"
 #include <util/delay.h>  
 
-unsigned char Enc28j60Bank;
-unsigned int NextPacketPtr;
-unsigned char REVID;
+uint16_t NextPacketPtr;
+uint8_t REVID;
 
 
 //*********************************************************************************************************
@@ -32,11 +31,11 @@ unsigned char REVID;
 // Sende Rad Command
 //
 //*********************************************************************************************************
-unsigned char enc28j60ReadOp(unsigned char op, unsigned char address) {
+uint8_t enc28j60ReadOp(uint8_t op, uint8_t address) {
 	SPI_Active(1);
 
 	SPI_ReadWrite(op | (address & ADDR_MASK));
-	unsigned char data = SPI_ReadWrite(0x00);
+	uint8_t data = SPI_ReadWrite(0x00);
 	if (address & 0x80) {
 		data = SPI_ReadWrite(0x00);
 	}
@@ -50,7 +49,7 @@ unsigned char enc28j60ReadOp(unsigned char op, unsigned char address) {
 // Sende Write Command
 //
 //*********************************************************************************************************
-void enc28j60WriteOp(unsigned char op, unsigned char address, unsigned char data) {
+void enc28j60WriteOp(uint8_t op, uint8_t address, uint8_t data) {
 	SPI_Active(1);
 
 	SPI_ReadWrite(op | (address & ADDR_MASK));
@@ -64,7 +63,7 @@ void enc28j60WriteOp(unsigned char op, unsigned char address, unsigned char data
 // Buffer einlesen
 //
 //*********************************************************************************************************
-void enc28j60ReadBuffer(unsigned int len, unsigned char *data){
+void enc28j60ReadBuffer(uint16_t len, uint8_t *data){
 	SPI_Active(1);
 
 	SPI_ReadWrite(ENC28J60_READ_BUF_MEM);
@@ -78,7 +77,7 @@ void enc28j60ReadBuffer(unsigned int len, unsigned char *data){
 // Buffer schreiben
 //
 //*********************************************************************************************************
-void enc28j60WriteBuffer(unsigned int len, unsigned char *data) {
+void enc28j60WriteBuffer(uint16_t len, uint8_t *data) {
 	SPI_Active(1);
 
 	SPI_ReadWrite(ENC28J60_WRITE_BUF_MEM);
@@ -92,12 +91,13 @@ void enc28j60WriteBuffer(unsigned int len, unsigned char *data) {
 // 
 //
 //*********************************************************************************************************
-void enc28j60SetBank(unsigned char address) {
+void enc28j60SetBank(uint8_t address) {
 	// set the bank (if needed)
-	if ((address & BANK_MASK) != Enc28j60Bank) {
+	static uint8_t bank = 0;
+	if ((BANK_MASK & address) != bank) {
 		enc28j60WriteOp(ENC28J60_BIT_FIELD_CLR, ECON1, (ECON1_BSEL1 | ECON1_BSEL0));
 		enc28j60WriteOp(ENC28J60_BIT_FIELD_SET, ECON1, (address & BANK_MASK) >> 5);
-		Enc28j60Bank = (address & BANK_MASK);
+		bank = (address & BANK_MASK);
 	}
 }
 
@@ -106,7 +106,7 @@ void enc28j60SetBank(unsigned char address) {
 // 
 //
 //*********************************************************************************************************
-unsigned char enc28j60Read(unsigned char address) {
+uint8_t enc28j60Read(uint8_t address) {
 	enc28j60SetBank(address);
 	return enc28j60ReadOp(ENC28J60_READ_CTRL_REG, address);
 }
@@ -116,12 +116,12 @@ unsigned char enc28j60Read(unsigned char address) {
 // 
 //
 //*********************************************************************************************************
-void enc28j60Write(unsigned char address, unsigned char data) {
+void enc28j60Write(uint8_t address, uint8_t data) {
 	enc28j60SetBank(address);
 	enc28j60WriteOp(ENC28J60_WRITE_CTRL_REG, address, data);
 }
 
-void enc28j60Write16(unsigned char baseaddr, uint16_t data) {
+void enc28j60Write16(uint8_t baseaddr, uint16_t data) {
 	enc28j60Write(baseaddr      , data & 0xff);
 	enc28j60Write(baseaddr | 0x1, data >> 8);
 }
@@ -131,8 +131,8 @@ void enc28j60Write16(unsigned char baseaddr, uint16_t data) {
 // 
 //
 //*********************************************************************************************************
-unsigned int enc28j60PhyRead(unsigned char address) {
-	unsigned int data;
+uint16_t enc28j60PhyRead(uint8_t address) {
+	uint16_t data;
 
 	// Set the right address and start the register read operation
 	enc28j60Write(MIREGADR, address);
@@ -156,7 +156,7 @@ unsigned int enc28j60PhyRead(unsigned char address) {
 // 
 //
 //*********************************************************************************************************
-void enc28j60PhyWrite(unsigned char address, unsigned int data) {
+void enc28j60PhyWrite(uint8_t address, uint16_t data) {
 	// set the PHY register address
 	enc28j60Write(MIREGADR, address);
 
@@ -249,7 +249,7 @@ void enc28j60Init() {
 // Sendet ein Packet
 //
 //*********************************************************************************************************
-void enc28j60PacketSend(unsigned int len, unsigned char* packet){
+void enc28j60PacketSend(uint16_t len, uint8_t *packet) {
 	// Set the write pointer to start of transmit buffer area
 	enc28j60Write16(EWRPTL, TXSTART_INIT);
 
@@ -272,14 +272,16 @@ void enc28j60PacketSend(unsigned int len, unsigned char* packet){
 // Hole ein empfangendes Packet
 //
 //*********************************************************************************************************
-unsigned int enc28j60PacketReceive(unsigned int maxlen, unsigned char* packet){
-	unsigned int rxstat, rs,re;;
-	unsigned int len;
+uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t *packet) {
+	uint16_t rxstat, rs, re;
+	uint16_t len;
 
 	// check if a packet has been received and buffered
-	if( !(enc28j60Read(EIR) & EIR_PKTIF) )
-		if (enc28j60Read(EPKTCNT) == 0)
+	if (!(enc28j60Read(EIR) & EIR_PKTIF)) {
+		if (enc28j60Read(EPKTCNT) == 0) {
 			return 0;
+		}
+	}
 
 	// Make absolutely certain that any previous packet was discarded	
 	//if( WasDiscarded == FALSE)
@@ -306,7 +308,7 @@ unsigned int enc28j60PacketReceive(unsigned int maxlen, unsigned char* packet){
 	// limit retrieve length
 	// len = MIN(len, maxlen);
 	// When len bigger than maxlen, ignore the packet und read next packetptr
-	if ( len  > maxlen ){
+	if (len > maxlen) {
 		enc28j60Write16(ERXRDPTL, NextPacketPtr);
 		enc28j60WriteOp(ENC28J60_BIT_FIELD_SET, ECON2, ECON2_PKTDEC);
 		return(0);
@@ -321,14 +323,14 @@ unsigned int enc28j60PacketReceive(unsigned int maxlen, unsigned char* packet){
 	re = enc28j60Read(ERXNDH);
 	re <<= 8;
 	re |= enc28j60Read(ERXNDL);
-	if (NextPacketPtr - 1 < rs || NextPacketPtr - 1 > re){
+	if (NextPacketPtr - 1 < rs || NextPacketPtr - 1 > re) {
 		enc28j60Write16(ERXRDPTL, re);
-	}else{
+	} else {
 		enc28j60Write16(ERXRDPTL, NextPacketPtr - 1);
 	}
 
 	// decrement the packet counter indicate we are done with this packet
 	enc28j60WriteOp(ENC28J60_BIT_FIELD_SET, ECON2, ECON2_PKTDEC);
 
-	return len ;
+	return len;
 }

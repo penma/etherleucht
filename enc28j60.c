@@ -121,6 +121,11 @@ void enc28j60Write(unsigned char address, unsigned char data) {
 	enc28j60WriteOp(ENC28J60_WRITE_CTRL_REG, address, data);
 }
 
+void enc28j60Write16(unsigned char baseaddr, uint16_t data) {
+	enc28j60Write(baseaddr      , data & 0xff);
+	enc28j60Write(baseaddr | 0x1, data >> 8);
+}
+
 //*********************************************************************************************************
 //
 // 
@@ -156,8 +161,7 @@ void enc28j60PhyWrite(unsigned char address, unsigned int data) {
 	enc28j60Write(MIREGADR, address);
 
 	// write the PHY data
-	enc28j60Write(MIWRL, data);
-	enc28j60Write(MIWRH, data >> 8);
+	enc28j60Write16(MIWRL, data);
 
 	// wait until the PHY write completes
 	while (enc28j60Read(MISTAT) & MISTAT_BUSY) {
@@ -192,19 +196,15 @@ void enc28j60Init() {
 	// 16-bit transfers, must write low byte first
 	// set receive buffer start address
 	NextPacketPtr = RXSTART_INIT;
-	enc28j60Write(ERXSTL, RXSTART_INIT&0xFF);
-	enc28j60Write(ERXSTH, RXSTART_INIT>>8);
+	enc28j60Write16(ERXSTL, RXSTART_INIT);
 	// set receive pointer address
-	enc28j60Write(ERXRDPTL, RXSTART_INIT&0xFF);
-	enc28j60Write(ERXRDPTH, RXSTART_INIT>>8);
+	enc28j60Write16(ERXRDPTL, RXSTART_INIT);
 	// set receive buffer end
 	// ERXND defaults to 0x1FFF (end of ram)
-	enc28j60Write(ERXNDL, RXSTOP_INIT&0xFF);
-	enc28j60Write(ERXNDH, RXSTOP_INIT>>8);
+	enc28j60Write16(ERXNDL, RXSTOP_INIT);
 	// set transmit buffer start
 	// ETXST defaults to 0x0000 (beginnging of ram)
-	enc28j60Write(ETXSTL, TXSTART_INIT&0xFF);
-	enc28j60Write(ETXSTH, TXSTART_INIT>>8);
+	enc28j60Write16(ETXSTL, TXSTART_INIT);
 
 	// do bank 2 stuff
 	// enable MAC receive
@@ -215,13 +215,11 @@ void enc28j60Init() {
 	enc28j60WriteOp(ENC28J60_BIT_FIELD_SET, MACON3, MACON3_PADCFG0|MACON3_TXCRCEN|MACON3_FRMLNEN);
 
 	// set inter-frame gap (non-back-to-back)
-	enc28j60Write(MAIPGL, 0x12);
-	enc28j60Write(MAIPGH, 0x0C);
+	enc28j60Write16(MAIPGL, 0x0c12);
 	// set inter-frame gap (back-to-back)
 	enc28j60Write(MABBIPG, 0x12);
 	// Set the maximum packet size which the controller will accept
-	enc28j60Write(MAMXFLL, MAX_FRAMELEN&0xFF);
-	enc28j60Write(MAMXFLH, MAX_FRAMELEN>>8);
+	enc28j60Write16(MAMXFLL, MAX_FRAMELEN);
 
 	// do bank 3 stuff
 	// write MAC address
@@ -253,12 +251,10 @@ void enc28j60Init() {
 //*********************************************************************************************************
 void enc28j60PacketSend(unsigned int len, unsigned char* packet){
 	// Set the write pointer to start of transmit buffer area
-	enc28j60Write(EWRPTL, TXSTART_INIT);
-	enc28j60Write(EWRPTH, TXSTART_INIT>>8);
+	enc28j60Write16(EWRPTL, TXSTART_INIT);
 
 	// Set the TXND pointer to correspond to the packet size given
-	enc28j60Write(ETXNDL, (TXSTART_INIT+len));
-	enc28j60Write(ETXNDH, (TXSTART_INIT+len)>>8);
+	enc28j60Write16(ETXNDL, TXSTART_INIT + len);
 
 	// write per-packet control byte
 	enc28j60WriteOp(ENC28J60_WRITE_BUF_MEM, 0, 0x00);
@@ -290,8 +286,7 @@ unsigned int enc28j60PacketReceive(unsigned int maxlen, unsigned char* packet){
 	//	MACDiscardRx();
 
 	// Set the read pointer to the start of the received packet
-	enc28j60Write(ERDPTL, (NextPacketPtr));
-	enc28j60Write(ERDPTH, (NextPacketPtr)>>8);
+	enc28j60Write16(ERDPTL, NextPacketPtr);
 
 	// read the next packet pointer
 	NextPacketPtr  = enc28j60ReadOp(ENC28J60_READ_BUF_MEM, 0);
@@ -312,8 +307,7 @@ unsigned int enc28j60PacketReceive(unsigned int maxlen, unsigned char* packet){
 	// len = MIN(len, maxlen);
 	// When len bigger than maxlen, ignore the packet und read next packetptr
 	if ( len  > maxlen ){
-		enc28j60Write(ERXRDPTL, (NextPacketPtr));
-		enc28j60Write(ERXRDPTH, (NextPacketPtr)>>8);
+		enc28j60Write16(ERXRDPTL, NextPacketPtr);
 		enc28j60WriteOp(ENC28J60_BIT_FIELD_SET, ECON2, ECON2_PKTDEC);
 		return(0);
 	}
@@ -328,11 +322,9 @@ unsigned int enc28j60PacketReceive(unsigned int maxlen, unsigned char* packet){
 	re <<= 8;
 	re |= enc28j60Read(ERXNDL);
 	if (NextPacketPtr - 1 < rs || NextPacketPtr - 1 > re){
-		enc28j60Write(ERXRDPTL, (re));
-		enc28j60Write(ERXRDPTH, (re)>>8);
+		enc28j60Write16(ERXRDPTL, re);
 	}else{
-		enc28j60Write(ERXRDPTL, (NextPacketPtr-1));
-		enc28j60Write(ERXRDPTH, (NextPacketPtr-1)>>8);
+		enc28j60Write16(ERXRDPTL, NextPacketPtr - 1);
 	}
 
 	// decrement the packet counter indicate we are done with this packet

@@ -184,13 +184,6 @@ void enc28j60PhyWrite(unsigned char address, unsigned int data){
 //
 //*********************************************************************************************************
 void enc28j60Init(void){
-  // initialize I/O
-	DDRD |= (1 << PD2) | (1 << PD1);
-	PORTD |= (1 << PD2);
-	_delay_ms(500);
-	PORTD &= ~(1 << PD2);
-	_delay_ms(500);
-
   // check if SPI initialized
   if ( SPI_GetInitState() == SPI_NOT_INIT ) SPI_init( SPI_FULL_SPEED );
   SPI_Active(0);
@@ -198,15 +191,11 @@ void enc28j60Init(void){
   // perform system reset
   enc28j60WriteOp(ENC28J60_SOFT_RESET, 0, ENC28J60_SOFT_RESET);
   // check CLKRDY bit to see if reset is complete
-  _delay_us(20); 
-  _delay_us(20); 
-  _delay_us(20); 
-  _delay_us(20); 
+  _delay_us(80); 
 
-  while(!(enc28j60Read(ESTAT) & ESTAT_CLKRDY));
-	
+  while(!(enc28j60Read(ESTAT) & ESTAT_CLKRDY)) {
+  }
 
-PORTD |= (1 << PD2);
   // read die RevID
   REVID = enc28j60Read( EREVID );
   // do bank 0 stuff

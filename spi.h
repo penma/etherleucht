@@ -36,8 +36,6 @@
 	void SPI_FastMem2Write( unsigned char * buffer, unsigned int Datalenght );
 	void SPI_Active(int);
 
-	void led_debug(unsigned char wat);
-	
 	#define SPI_NOT_INIT	0x00
 	#define SPI_HALF_SPEED	0x01
 	#define SPI_FULL_SPEED	0x02

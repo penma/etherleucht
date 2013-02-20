@@ -31,35 +31,7 @@
 #include <avr/io.h>
 #include <util/delay.h>
 
-#define SW1 PB4
-#define SW2 PD5
-
 unsigned char SPI_InitState = 0;
-
-#define DBG_ST PD0
-#define DBG_SH PD1
-#define DBG_DS PD4
-void led_debug(unsigned char wat) {
-	DDRD |= (1 << DBG_ST) | (1 << DBG_SH) | (1 << DBG_DS);
-	PORTD &= ~( (1 << DBG_ST) | (1 << DBG_SH) );
-
-	for (int i = 8; i > 0; i--) {
-		if (wat & (1 << (i-1))) {
-			PORTD |= (1 << DBG_DS);
-		} else {
-			PORTD &= ~(1 << DBG_DS);
-		}
-		PORTD |= (1 << DBG_SH);
-		__builtin_avr_delay_cycles(10);
-		PORTD &= ~(1 << DBG_SH);
-		__builtin_avr_delay_cycles(10);
-	}
-
-	PORTD |= (1 << DBG_ST);
-	__builtin_avr_delay_cycles(10);
-	_delay_ms(1000);
-}
-
 
  
 /* -----------------------------------------------------------------------------------------------------------*/
@@ -71,10 +43,10 @@ void led_debug(unsigned char wat) {
 unsigned int SPI_init( unsigned int Options )
 {
 	DDRD &= ~(1 << PD3); /* INT */
-	DDRD |= (1 << SW2)  | (1 << SS);
+	DDRD |= (1 << SS);
 
 	DDRB &= ~(1 << MISO);
-	DDRB |= (1 << MOSI) | (1 << SCK) | (1 << SW1);
+	DDRB |= (1 << MOSI) | (1 << SCK);
 
 	SPI_InitState = 1;
 

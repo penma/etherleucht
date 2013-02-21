@@ -273,7 +273,6 @@ uint8_t enc28j60ReadOp(uint8_t, uint8_t);
 void enc28j60WriteOp(uint8_t, uint8_t, uint8_t);
 void enc28j60ReadBuffer(uint16_t, uint8_t*);
 void enc28j60WriteBuffer(uint16_t, uint8_t*);
-void enc28j60SetBank(uint8_t);
 uint8_t enc28j60Read(uint8_t);
 void enc28j60Write(uint8_t, uint8_t);
 uint16_t enc28j60PhyRead(uint8_t);

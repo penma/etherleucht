@@ -34,7 +34,7 @@
 	unsigned char SPI_GetInitState( void );
 	void SPI_FastRead2Mem( unsigned char * buffer, unsigned int Datalenght );
 	void SPI_FastMem2Write( unsigned char * buffer, unsigned int Datalenght );
-	void SPI_Active(int);
+	void SPI_Active(uint8_t);
 
 	#define SPI_NOT_INIT	0x00
 	#define SPI_HALF_SPEED	0x01

@@ -122,7 +122,7 @@ unsigned char SPI_GetInitState( void )
 
 //@}
 
-void SPI_Active(int act) {
+void SPI_Active(uint8_t act) {
 	if (act) {
 		PORTD &= ~(1 << SS);
 	} else {

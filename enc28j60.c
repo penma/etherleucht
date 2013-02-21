@@ -22,8 +22,8 @@
 #include "spi.h"
 #include <util/delay.h>  
 
-uint16_t NextPacketPtr;
-uint8_t REVID;
+static uint16_t NextPacketPtr;
+static uint8_t REVID;
 
 
 //*********************************************************************************************************
@@ -91,13 +91,13 @@ void enc28j60WriteBuffer(uint16_t len, uint8_t *data) {
 // 
 //
 //*********************************************************************************************************
-void enc28j60SetBank(uint8_t address) {
+static void enc28j60SetBank(uint8_t address) {
 	// set the bank (if needed)
 	static uint8_t bank = 0;
 	if ((BANK_MASK & address) != bank) {
 		enc28j60WriteOp(ENC28J60_BIT_FIELD_CLR, ECON1, (ECON1_BSEL1 | ECON1_BSEL0));
-		enc28j60WriteOp(ENC28J60_BIT_FIELD_SET, ECON1, (address & BANK_MASK) >> 5);
-		bank = (address & BANK_MASK);
+		enc28j60WriteOp(ENC28J60_BIT_FIELD_SET, ECON1, (BANK_MASK & address) >> 5);
+		bank = (BANK_MASK & address);
 	}
 }
 

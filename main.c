@@ -3,7 +3,7 @@
 #include <util/delay.h>
 #include <stdlib.h>
 
-int main (void) {
+void main() {
 	enc28j60Init();
 
 	while (1) {
@@ -12,7 +12,6 @@ int main (void) {
 		_delay_ms(100);
 		PORTD &= ~(1 << PD2);
 		_delay_ms(900);
-
 	}
 }
 

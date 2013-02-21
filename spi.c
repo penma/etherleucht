@@ -31,8 +31,6 @@
 #include <avr/io.h>
 #include <util/delay.h>
 
-unsigned char SPI_InitState = 0;
-
  
 /* -----------------------------------------------------------------------------------------------------------*/
 /*! Die Init fuer dir SPI-Schnittstelle. Es koennen verschiedene Geschwindigkeiten eingestellt werden.
@@ -40,17 +38,13 @@ unsigned char SPI_InitState = 0;
  * \retval	Null wenn alles richtig eingestellt wurde.
  */
 /* -----------------------------------------------------------------------------------------------------------*/
-unsigned int SPI_init( unsigned int Options )
+void SPI_init()
 {
 	DDRD &= ~(1 << PD3); /* INT */
 	DDRD |= (1 << SS);
 
 	DDRB &= ~(1 << MISO);
 	DDRB |= (1 << MOSI) | (1 << SCK);
-
-	SPI_InitState = 1;
-
-	return( 0 );
 }
 
 /* -----------------------------------------------------------------------------------------------------------*/
@@ -108,16 +102,6 @@ void SPI_FastRead2Mem( unsigned char * buffer, unsigned int Datalenght )
 	for (int i = 0; i < Datalenght; i++) {
 		buffer[i] = SPI_ReadWrite(0);
 	}
-}
-
-/* -----------------------------------------------------------------------------------------------------------*/
-/*! Hier wird der InitStatus abgefragt um zu sehen ob die Schnittstelle schon Eingestellt worden ist.
- * \retval  Status
- */
-/* -----------------------------------------------------------------------------------------------------------*/
-unsigned char SPI_GetInitState( void )
-{
-	return( SPI_InitState );
 }
 
 //@}

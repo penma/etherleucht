@@ -174,10 +174,7 @@ void enc28j60PhyWrite(uint8_t address, uint16_t data) {
 //
 //*********************************************************************************************************
 void enc28j60Init() {
-	if (SPI_GetInitState() == SPI_NOT_INIT) {
-		SPI_init( SPI_FULL_SPEED);
-	}
-
+	SPI_init();
 	SPI_Active(0);
 
 	// perform system reset

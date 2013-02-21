@@ -29,16 +29,11 @@
 	
 	#include <avr/io.h>
 
-	unsigned int SPI_init( unsigned int Options );
+	void SPI_init();
 	unsigned char SPI_ReadWrite( unsigned char Data );
-	unsigned char SPI_GetInitState( void );
 	void SPI_FastRead2Mem( unsigned char * buffer, unsigned int Datalenght );
 	void SPI_FastMem2Write( unsigned char * buffer, unsigned int Datalenght );
 	void SPI_Active(uint8_t);
-
-	#define SPI_NOT_INIT	0x00
-	#define SPI_HALF_SPEED	0x01
-	#define SPI_FULL_SPEED	0x02
 	
 	#define SS				PD6
 	#define MISO			PB1

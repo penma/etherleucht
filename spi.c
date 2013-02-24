@@ -41,7 +41,7 @@
 void SPI_init()
 {
 	DDRD &= ~(1 << PD3); /* INT */
-	DDRD |= (1 << SS);
+	DDRA |= (1 << SS);
 
 	DDRB &= ~(1 << MISO);
 	DDRB |= (1 << MOSI) | (1 << SCK);
@@ -83,7 +83,7 @@ unsigned char SPI_ReadWrite( unsigned char Data )
  * \param	Datalenght	Anzahl der Bytes die gesedet werden soll.
  */
 /* -----------------------------------------------------------------------------------------------------------*/
-void SPI_FastMem2Write( unsigned char * buffer, unsigned int Datalenght )
+void SPI_FastMem2Write( const unsigned char *const buffer, unsigned int Datalenght )
 {
 	for (int i = 0; i < Datalenght; i++) {
 		SPI_ReadWrite(buffer[i]);
@@ -108,8 +108,8 @@ void SPI_FastRead2Mem( unsigned char * buffer, unsigned int Datalenght )
 
 void SPI_Active(uint8_t act) {
 	if (act) {
-		PORTD &= ~(1 << SS);
+		PORTA &= ~(1 << SS);
 	} else {
-		PORTD |= (1 << SS);
+		PORTA |= (1 << SS);
 	}
 }

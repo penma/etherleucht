@@ -242,9 +242,15 @@
 
 // buffer boundaries applied to internal 8K ram
 // entire available packet buffer space is allocated
+/*
 #define TXSTART_INIT   	0x1800	// start TX buffer at 0
 #define RXSTART_INIT   	0x0000	// give TX buffer space for one full ethernet frame (~1500 bytes)
 #define RXSTOP_INIT    	0x17FE	// receive buffer gets the rest
+*/
+
+#define TXSTART_INIT 0x1800
+#define RXSTART_INIT 0x0000
+#define RXSTOP_INIT 0x16FE
 
 //#define TXSTART_INIT   	MAX_FRAMELEN	// start TX buffer at 0
 //#define RXSTART_INIT   	MAX_FRAMELEN+1	// give TX buffer space for one full ethernet frame (~1500 bytes)
@@ -269,19 +275,11 @@
 #endif
 
 void nicSetMacAddress( void ); /* FIXME */
-uint8_t enc28j60ReadOp(uint8_t, uint8_t);
-void enc28j60WriteOp(uint8_t, uint8_t, uint8_t);
-void enc28j60ReadBuffer(uint16_t, uint8_t*);
-void enc28j60WriteBuffer(uint16_t, uint8_t*);
-uint8_t enc28j60Read(uint8_t);
-void enc28j60Write(uint8_t, uint8_t);
-uint16_t enc28j60PhyRead(uint8_t);
-void enc28j60PhyWrite(uint8_t, uint16_t);
 
 //! initialize the ethernet interface for transmit/receive
 void enc28j60Init();
 
-void enc28j60PacketSend(uint16_t, uint8_t*);
+void enc28j60PacketSend(uint16_t, const uint8_t*const);
 uint16_t enc28j60PacketReceive(uint16_t, uint8_t*);
 
 #endif

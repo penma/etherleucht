@@ -25,20 +25,22 @@
 static uint16_t NextPacketPtr;
 static uint8_t REVID;
 
+extern uint16_t dbga, dbgb, dbgc, dbgd;
+
 
 //*********************************************************************************************************
 //
 // Sende Rad Command
 //
 //*********************************************************************************************************
-uint8_t enc28j60ReadOp(uint8_t op, uint8_t address) {
+static uint8_t enc28j60ReadOp(uint8_t op, uint8_t address) {
 	SPI_Active(1);
 
 	SPI_ReadWrite(op | (address & ADDR_MASK));
-	uint8_t data = SPI_ReadWrite(0x00);
 	if (address & 0x80) {
-		data = SPI_ReadWrite(0x00);
+		SPI_ReadWrite(0x00);
 	}
+	uint8_t data = SPI_ReadWrite(0x00);
 
 	SPI_Active(0);
 	return data;
@@ -49,7 +51,7 @@ uint8_t enc28j60ReadOp(uint8_t op, uint8_t address) {
 // Sende Write Command
 //
 //*********************************************************************************************************
-void enc28j60WriteOp(uint8_t op, uint8_t address, uint8_t data) {
+static void enc28j60WriteOp(uint8_t op, uint8_t address, uint8_t data) {
 	SPI_Active(1);
 
 	SPI_ReadWrite(op | (address & ADDR_MASK));
@@ -63,7 +65,7 @@ void enc28j60WriteOp(uint8_t op, uint8_t address, uint8_t data) {
 // Buffer einlesen
 //
 //*********************************************************************************************************
-void enc28j60ReadBuffer(uint16_t len, uint8_t *data){
+static void enc28j60ReadBuffer(uint16_t len, uint8_t *data){
 	SPI_Active(1);
 
 	SPI_ReadWrite(ENC28J60_READ_BUF_MEM);
@@ -77,7 +79,7 @@ void enc28j60ReadBuffer(uint16_t len, uint8_t *data){
 // Buffer schreiben
 //
 //*********************************************************************************************************
-void enc28j60WriteBuffer(uint16_t len, uint8_t *data) {
+static void enc28j60WriteBuffer(uint16_t len, const uint8_t *const data) {
 	SPI_Active(1);
 
 	SPI_ReadWrite(ENC28J60_WRITE_BUF_MEM);
@@ -106,7 +108,7 @@ static void enc28j60SetBank(uint8_t address) {
 // 
 //
 //*********************************************************************************************************
-uint8_t enc28j60Read(uint8_t address) {
+static uint8_t enc28j60Read(uint8_t address) {
 	enc28j60SetBank(address);
 	return enc28j60ReadOp(ENC28J60_READ_CTRL_REG, address);
 }
@@ -116,14 +118,21 @@ uint8_t enc28j60Read(uint8_t address) {
 // 
 //
 //*********************************************************************************************************
-void enc28j60Write(uint8_t address, uint8_t data) {
+static void enc28j60Write(uint8_t address, uint8_t data) {
 	enc28j60SetBank(address);
 	enc28j60WriteOp(ENC28J60_WRITE_CTRL_REG, address, data);
 }
 
-void enc28j60Write16(uint8_t baseaddr, uint16_t data) {
+static void enc28j60Write16(uint8_t baseaddr, uint16_t data) {
 	enc28j60Write(baseaddr      , data & 0xff);
 	enc28j60Write(baseaddr | 0x1, data >> 8);
+}
+
+static uint16_t enc28j60Read16(uint8_t baseaddr) {
+	uint16_t data;
+	data = enc28j60Read(baseaddr);
+	data |= enc28j60Read(baseaddr | 0x1) << 8;
+	return data;
 }
 
 //*********************************************************************************************************
@@ -131,7 +140,7 @@ void enc28j60Write16(uint8_t baseaddr, uint16_t data) {
 // 
 //
 //*********************************************************************************************************
-uint16_t enc28j60PhyRead(uint8_t address) {
+static uint16_t enc28j60PhyRead(uint8_t address) {
 	uint16_t data;
 
 	// Set the right address and start the register read operation
@@ -156,7 +165,7 @@ uint16_t enc28j60PhyRead(uint8_t address) {
 // 
 //
 //*********************************************************************************************************
-void enc28j60PhyWrite(uint8_t address, uint16_t data) {
+static void enc28j60PhyWrite(uint8_t address, uint16_t data) {
 	// set the PHY register address
 	enc28j60Write(MIREGADR, address);
 
@@ -195,10 +204,11 @@ void enc28j60Init() {
 	NextPacketPtr = RXSTART_INIT;
 	enc28j60Write16(ERXSTL, RXSTART_INIT);
 	// set receive pointer address
-	enc28j60Write16(ERXRDPTL, RXSTART_INIT);
+	enc28j60Write16(ERXNDL, RXSTOP_INIT - 1);
+	// enc28j60Write16(ERXRDPTL, RXSTART_INIT);
+	enc28j60Write16(ERXRDPTL, RXSTOP_INIT - 1);
 	// set receive buffer end
 	// ERXND defaults to 0x1FFF (end of ram)
-	enc28j60Write16(ERXNDL, RXSTOP_INIT);
 	// set transmit buffer start
 	// ETXST defaults to 0x0000 (beginnging of ram)
 	enc28j60Write16(ETXSTL, TXSTART_INIT);
@@ -246,7 +256,7 @@ void enc28j60Init() {
 // Sendet ein Packet
 //
 //*********************************************************************************************************
-void enc28j60PacketSend(uint16_t len, uint8_t *packet) {
+void enc28j60PacketSend(uint16_t len, const uint8_t *const packet) {
 	// Set the write pointer to start of transmit buffer area
 	enc28j60Write16(EWRPTL, TXSTART_INIT);
 
@@ -305,8 +315,10 @@ uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t *packet) {
 	// limit retrieve length
 	// len = MIN(len, maxlen);
 	// When len bigger than maxlen, ignore the packet und read next packetptr
+		dbga = len;
 	if (len > maxlen) {
-		enc28j60Write16(ERXRDPTL, NextPacketPtr);
+		PORTA &= ~(1 << PA0);
+		enc28j60Write16(ERXRDPTL, NextPacketPtr - 1);
 		enc28j60WriteOp(ENC28J60_BIT_FIELD_SET, ECON2, ECON2_PKTDEC);
 		return(0);
 	}
@@ -314,14 +326,10 @@ uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t *packet) {
 	enc28j60ReadBuffer(len, packet);
 
 	// an implementation of Errata B1 Section #13
-	rs = enc28j60Read(ERXSTH);
-	rs <<= 8;
-	rs |= enc28j60Read(ERXSTL);
-	re = enc28j60Read(ERXNDH);
-	re <<= 8;
-	re |= enc28j60Read(ERXNDL);
+	rs = enc28j60Read16(ERXSTL);
+	re = enc28j60Read16(ERXNDL);
 	if (NextPacketPtr - 1 < rs || NextPacketPtr - 1 > re) {
-		enc28j60Write16(ERXRDPTL, re);
+		enc28j60Write16(ERXRDPTL, re - 1);
 	} else {
 		enc28j60Write16(ERXRDPTL, NextPacketPtr - 1);
 	}
@@ -331,3 +339,4 @@ uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t *packet) {
 
 	return len;
 }
+

@@ -32,13 +32,13 @@
 	void SPI_init();
 	unsigned char SPI_ReadWrite( unsigned char Data );
 	void SPI_FastRead2Mem( unsigned char * buffer, unsigned int Datalenght );
-	void SPI_FastMem2Write( unsigned char * buffer, unsigned int Datalenght );
+	void SPI_FastMem2Write( const unsigned char *const buffer, unsigned int Datalenght );
 	void SPI_Active(uint8_t);
 	
-	#define SS				PD6
-	#define MISO			PB1
-	#define MOSI			PB0
-	#define SCK				PB2
+	#define SS				PA1
+	#define MISO			PB5
+	#define MOSI			PB6
+	#define SCK				PB7
 
 #endif /* _SPI_H */
 //@}

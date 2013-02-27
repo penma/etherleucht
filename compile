@@ -9,15 +9,15 @@ d() { f $*; "$@"; }
 
 d avr-gcc \
 	-mmcu=attiny2313 -DF_CPU=8000000UL \
-	-gdwarf-2 -std=gnu99 -Os -fwhole-program \
+	-gdwarf-2 -std=gnu99 -Os -fwhole-program -flto -mstrict-X \
 	-funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums \
 	-Wall -Wundef -Wno-main -Wno-comment \
 	-fstack-usage -Wstack-usage=4 \
-	-I. -include main.c  -include enc28j60.c -include spi.c \
-	-xc /dev/null -o main.elf
+	-I. main.c enc28j60.c spi.c \
+	-o main.elf
 
 f stack usage by function
-column -t -s '	 :' null.su | sort -n -k 5
+column -t -s '	 :' *.su | sort -n -k 5
 
 f section sizes
 avr-objdump -hw -j.text -j.bss -j.data main.elf | tail -n +5

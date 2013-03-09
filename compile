@@ -8,7 +8,7 @@ f() {
 d() { f $*; "$@"; }
 
 d avr-gcc \
-	-mmcu=attiny2313 -DF_CPU=8000000UL \
+	-mmcu=attiny4313 -DF_CPU=8000000UL \
 	-gdwarf-2 -std=gnu99 -Os -fwhole-program -flto -mstrict-X \
 	-funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums \
 	-Wall -Wundef -Wno-main -Wno-comment \

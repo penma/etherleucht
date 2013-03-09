@@ -36,9 +36,6 @@
 	void SPI_Active(uint8_t);
 	
 	#define SS				PA1
-	#define MISO			PB5
-	#define MOSI			PB6
-	#define SCK				PB7
 
 #endif /* _SPI_H */
 //@}

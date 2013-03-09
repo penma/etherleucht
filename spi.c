@@ -43,8 +43,12 @@ void SPI_init()
 	DDRD &= ~(1 << PD3); /* INT */
 	DDRA |= (1 << SS);
 
-	DDRB &= ~(1 << MISO);
-	DDRB |= (1 << MOSI) | (1 << SCK);
+	XCK_DDR |= (1 << XCK_BIT);
+	TXD_DDR |= (1 << TXD_BIT);
+
+	UCSRC = (3 << UMSEL);
+	UCSRB = (1 << RXEN) | (1 << TXEN);
+	UBRRL = 1;
 }
 
 /* -----------------------------------------------------------------------------------------------------------*/
@@ -56,25 +60,17 @@ void SPI_init()
  */
 /* -----------------------------------------------------------------------------------------------------------*/
 
-#define PROGDELAY 10
 unsigned char SPI_ReadWrite( unsigned char Data )
 {
-
-	unsigned char Out = 0;
-	for (int i = 8; i > 0; i--) {
-		if (Data & (1 << (i-1))) {
-			PORTB |= (1 << MOSI);
-		} else {
-			PORTB &= ~(1 << MOSI);
-		}
-		PORTB |= (1 << SCK);
-		__builtin_avr_delay_cycles(PROGDELAY);
-		Out |= (PINB & (1 << MISO) ? 1 : 0) << (i-1);
-		PORTB &= ~(1 << SCK);
-		__builtin_avr_delay_cycles(PROGDELAY);
+	while (!(UCSRA & (1 << UDRE))) {
 	}
-//	led_debug(Out);
-	return Out;
+
+	UDR = Data;
+
+	while (!(UCSRA & (1 << RXC))) {
+	}
+
+	return UDR;
 }
 
 /* -----------------------------------------------------------------------------------------------------------*/

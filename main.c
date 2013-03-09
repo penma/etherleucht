@@ -53,6 +53,12 @@ void main() {
 	DDRB |= (1 << DBG_DATA) | (1 << DBG_SHIFT) | (1 << DBG_SYNC);
 	PORTB &= ~( (1 << DBG_DATA) | (1 << DBG_SHIFT) | (1 << DBG_SYNC) );
 
+	for (int i = 0; i < 100; i++) {
+		DebugHex(i);
+		DebugStr(" wat\n");
+		_delay_ms(30);
+	}
+
 	enc28j60Init();
 
 	uint8_t WAT = 0;

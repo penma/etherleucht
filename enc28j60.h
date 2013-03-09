@@ -231,7 +231,7 @@
 #endif
 
 void enc28j60Init();
-
+void enc_spi_select(uint8_t act);
 void enc28j60PacketSend(uint16_t, const uint8_t*const);
 uint16_t enc28j60PacketReceive(uint16_t, uint8_t*);
 

@@ -22,6 +22,8 @@
 #include "spi.h"
 #include <util/delay.h>  
 
+#include "debug.h"
+
 static uint16_t NextPacketPtr;
 static uint8_t REVID;
 
@@ -201,10 +203,8 @@ void enc28j60Init() {
 	/* wait for reset to complete
 	 * XXX is this reliable enough in case of total communication failure?
 	 */
-	DebugStr("wait");
 	while (!(enc28j60Read(ESTAT) & ESTAT_CLKRDY)) {
 	}
-	DebugStr(".\n");
 
 	REVID = enc28j60Read(EREVID);
 
@@ -305,16 +305,15 @@ uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t *packet) {
 	// check if a packet has been received and buffered
 	if (!(enc28j60Read(EIR) & EIR_PKTIF)) {
 		if (enc28j60Read(EPKTCNT) == 0) {
-			DebugStr("!R\n");
+			debug_str("!R\n");
 			return 0;
 		}
 	}
 
-	DebugStr("P");
-	DebugNum(enc28j60Read(EPKTCNT));
-	DebugStr(" R");
-	DebugHex(NextPacketPtr >> 8);
-	DebugHex(NextPacketPtr & 0xff);
+	debug_str("P");
+	debug_dec16(enc28j60Read(EPKTCNT));
+	debug_str(" R");
+	debug_hex16(NextPacketPtr);
 
 	// Make absolutely certain that any previous packet was discarded	
 	//if( WasDiscarded == FALSE)
@@ -331,10 +330,9 @@ uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t *packet) {
 	len  = enc28j60ReadOp(ENC28J60_READ_BUF_MEM, 0);
 	len |= enc28j60ReadOp(ENC28J60_READ_BUF_MEM, 0)<<8;
 
-	DebugStr("+");
-	DebugHex(len >> 8);
-	DebugHex(len & 0xff);
-	DebugStr("\n");
+	debug_str("+");
+	debug_hex16(len);
+	debug_str("\n");
 	// remove CRC from len (we don't read the CRC from
 	// the receive buffer
 	len -= 4;
@@ -366,13 +364,11 @@ uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t *packet) {
 	uint16_t wtf = enc28j60Read16(ERXRDPTL);
 	if (wtf != NextPacketPtr - 1) {
 		for (int i = 0; i < 4; i++) {
-		DebugStr("exp ");
-		DebugHex(wtf >> 8);
-		DebugHex(wtf & 0xff);
-		DebugStr("\ngot ");
-		DebugHex((NextPacketPtr - 1) >> 8);
-		DebugHex((NextPacketPtr - 1) & 0xff);
-		DebugStr("\n");
+		debug_str("exp ");
+		debug_hex16(wtf);
+		debug_str("\ngot ");
+		debug_hex16(NextPacketPtr - 1);
+		debug_str("\n");
 		}
 		while (1) {}
 	}

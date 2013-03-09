@@ -5,18 +5,55 @@
 
 #include "enc28j60.h"
 
-uint16_t dbga = 0;
-uint16_t dbgb = 0;
-uint16_t dbgc = 0;
-uint16_t dbgd = 0;
+#define DBG_DATA PB0
+#define DBG_SHIFT PB1
+#define DBG_SYNC PB2
+void DebugChar(uint8_t data) {
+	PORTB |= (1 << DBG_SYNC);
+	__builtin_avr_delay_cycles(20);
+	PORTB &= ~(1 << DBG_SYNC);
+	__builtin_avr_delay_cycles(20);
+
+	for (int i = 8; i > 0; i--) {
+		if (data & (1 << (i-1))) {
+			PORTB |= (1 << DBG_DATA);
+		} else {
+			PORTB &= ~(1 << DBG_DATA);
+		}
+		PORTB |= (1 << DBG_SHIFT);
+		__builtin_avr_delay_cycles(20);
+		PORTB &= ~(1 << DBG_SHIFT);
+		__builtin_avr_delay_cycles(20);
+	}
+
+	_delay_ms(10);
+}
+
+void DebugStr(char *wat) {
+	while (*wat != 0) {
+		DebugChar(*wat);
+		wat++;
+	}
+}
+
+static void DebugNibble(uint8_t wat) {
+	if (wat < 0xa) {
+		DebugChar('0' + wat);
+	} else {
+		DebugChar('a' + wat - 0xa);
+	}
+}
+
+void DebugHex(uint8_t wat) {
+	DebugNibble(wat >> 4);
+	DebugNibble(wat & 0xf);
+}
 
 void main() {
+	DDRB |= (1 << DBG_DATA) | (1 << DBG_SHIFT) | (1 << DBG_SYNC);
+	PORTB &= ~( (1 << DBG_DATA) | (1 << DBG_SHIFT) | (1 << DBG_SYNC) );
+
 	enc28j60Init();
-
-	DDRD |= (1 << PD2);
-	DDRA |= (1 << PA0);
-
-	PORTA |= (1 << PA0);
 
 	uint8_t WAT = 0;
 	while (1) {
@@ -54,68 +91,20 @@ void main() {
 		for (int i = 0; i < 10; i++) {
 			wat[34 + i] = WAT + i;
 		}
-		wat[44] = dbga >> 8;
-		wat[45] = dbga;
+		wat[44] = 0;
+		wat[45] = 0;
 
-		/* = {
-		0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-		0x42, 0xcc, 0xcd, 0x84, 0xf4, 0x7c,
-		0x08, 0x00,
-//		0x45, 0x00, 0x00, 0x20, 0x23, 0x42, 0x00, 0x00, 0xff, 0x11, 0x17, 0x31,
-//		0xc0, 0xa8, 0x00, 0x02, 0xc0, 0xa8, 0x00, 0x07,
-//		0x90, 0x01, 0x09, 0x26, 0x00, 0x0c, 0x00, 0x00, 0x7a, 0x6f, 0x6d, 0x67
-		0xaa, 0x55,
-		0xaa, 0x55,
-		0xaa, 0x55,
-		0xaa, 0x55,
-		0xaa, 0x55,
-		0xaa, 0x55,
-		0xaa, 0x55,
-		0xaa, 0x55,
-		0xaa, 0x55,
-		0xaa, 0x55,
-		0xaa, 0x55,
-		0xaa, 0x55,
-		0xaa, 0x55,
-		0xaa, 0x55,
-		0xaa, 0x55,
-		0xaa, 0x55,
-		};
 
-/*		wat[34] = wat[35] = 0xff;
-
-		wat[36] = dbga >> 8;
-		wat[38] = dbgb >> 8;
-		wat[40] = dbgc >> 8;
-		wat[42] = dbgd >> 8;
-
-		wat[37] = (dbga & 0xff);
-		wat[39] = (dbgb & 0xff);
-		wat[41] = (dbgc & 0xff);
-		wat[43] = (dbgd & 0xff);
-
-		wat[44] = wat[45] = 0xff;
-
-		wat[33] = _SFR_IO8(0x3d);
-*/
-
+		DebugStr("send pkg\n");
 		enc28j60PacketSend(46, wat);
-		_delay_ms(900);
-		PORTD ^= (1 << PD2);
-		_delay_ms(100);
-		PORTD ^= (1 << PD2);
+		_delay_ms(1000);
 
 		while (0 != enc28j60PacketReceive(64, wat)) {
-			_delay_ms(50);
-			PORTA ^= (1 << PA0);
-			_delay_ms(10);
-			PORTA ^= (1 << PA0);
-#define NN 20
 			if (wat[42] == '0') {
-				PORTD ^= (1 << PD2);
-				WAT++;
+				DebugStr("YAY\n");
 			}
 		}
 	}
 }
+
 

@@ -25,9 +25,6 @@
 static uint16_t NextPacketPtr;
 static uint8_t REVID;
 
-extern uint16_t dbga, dbgb, dbgc, dbgd;
-
-
 //*********************************************************************************************************
 //
 // Sende Rad Command
@@ -290,6 +287,10 @@ uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t *packet) {
 		}
 	}
 
+	DebugStr("R ");
+	DebugHex(NextPacketPtr >> 8);
+	DebugHex(NextPacketPtr & 0xff);
+
 	// Make absolutely certain that any previous packet was discarded	
 	//if( WasDiscarded == FALSE)
 	//	MACDiscardRx();
@@ -304,6 +305,11 @@ uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t *packet) {
 	// read the packet length
 	len  = enc28j60ReadOp(ENC28J60_READ_BUF_MEM, 0);
 	len |= enc28j60ReadOp(ENC28J60_READ_BUF_MEM, 0)<<8;
+
+	DebugStr("+");
+	DebugHex(len >> 8);
+	DebugHex(len & 0xff);
+	DebugStr("\n");
 	// remove CRC from len (we don't read the CRC from
 	// the receive buffer
 	len -= 4;
@@ -315,9 +321,7 @@ uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t *packet) {
 	// limit retrieve length
 	// len = MIN(len, maxlen);
 	// When len bigger than maxlen, ignore the packet und read next packetptr
-		dbga = len;
 	if (len > maxlen) {
-		PORTA &= ~(1 << PA0);
 		enc28j60Write16(ERXRDPTL, NextPacketPtr - 1);
 		enc28j60WriteOp(ENC28J60_BIT_FIELD_SET, ECON2, ECON2_PKTDEC);
 		return(0);

@@ -10,24 +10,26 @@
 #define DBG_SHIFT PB1
 #define DBG_SYNC PB2
 void DebugChar(uint8_t data) {
-	PORTB |= (1 << DBG_SYNC);
-	__builtin_avr_delay_cycles(20);
-	PORTB &= ~(1 << DBG_SYNC);
-	__builtin_avr_delay_cycles(20);
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+		PORTB |= (1 << DBG_SYNC);
+		__builtin_avr_delay_cycles(20);
+		PORTB &= ~(1 << DBG_SYNC);
+		__builtin_avr_delay_cycles(20);
 
-	for (int i = 8; i > 0; i--) {
-		if (data & (1 << (i-1))) {
-			PORTB |= (1 << DBG_DATA);
-		} else {
-			PORTB &= ~(1 << DBG_DATA);
+		for (int i = 8; i > 0; i--) {
+			if (data & (1 << (i-1))) {
+				PORTB |= (1 << DBG_DATA);
+			} else {
+				PORTB &= ~(1 << DBG_DATA);
+			}
+			PORTB |= (1 << DBG_SHIFT);
+			__builtin_avr_delay_cycles(20);
+			PORTB &= ~(1 << DBG_SHIFT);
+			__builtin_avr_delay_cycles(20);
 		}
-		PORTB |= (1 << DBG_SHIFT);
-		__builtin_avr_delay_cycles(20);
-		PORTB &= ~(1 << DBG_SHIFT);
-		__builtin_avr_delay_cycles(20);
-	}
 
-	_delay_ms(10);
+		_delay_ms(10);
+	}
 }
 
 void DebugStr(char *wat) {

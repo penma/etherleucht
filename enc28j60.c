@@ -276,6 +276,14 @@ void enc28j60PacketSend(uint16_t len, const uint8_t *const packet) {
 // Hole ein empfangendes Packet
 //
 //*********************************************************************************************************
+
+
+void enc_acknowledge_packet() {
+	enc28j60Write16(ERXRDPTL, NextPacketPtr - 1);
+	enc28j60WriteOp(ENC28J60_BIT_FIELD_SET, ECON2, ECON2_PKTDEC);
+}
+
+
 uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t *packet) {
 	uint16_t rxstat, rs, re;
 	uint16_t len;
@@ -325,8 +333,7 @@ uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t *packet) {
 	// len = MIN(len, maxlen);
 	// When len bigger than maxlen, ignore the packet und read next packetptr
 	if (len > maxlen) {
-		enc28j60Write16(ERXRDPTL, NextPacketPtr - 1);
-		enc28j60WriteOp(ENC28J60_BIT_FIELD_SET, ECON2, ECON2_PKTDEC);
+		enc_acknowledge_packet();
 		return(0);
 	}
 	// copy the packet without CRC from the receive buffer
@@ -342,7 +349,18 @@ uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t *packet) {
 	}
 
 	// decrement the packet counter indicate we are done with this packet
-	enc28j60WriteOp(ENC28J60_BIT_FIELD_SET, ECON2, ECON2_PKTDEC);
+	uint16_t wtf = enc28j60Read16(ERXRDPTL);
+	if (wtf != NextPacketPtr - 1) {
+		DebugStr("exp ");
+		DebugHex(wtf >> 8);
+		DebugHex(wtf & 0xff);
+		DebugStr("\ngot ");
+		DebugHex((NextPacketPtr - 1) >> 8);
+		DebugHex((NextPacketPtr - 1) & 0xff);
+		DebugStr("\n");
+		while (1) {}
+	}
+	enc_acknowledge_packet();
 
 	return len;
 }

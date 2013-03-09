@@ -85,6 +85,7 @@ void main() {
 
 	DebugStr("* O HAI *\n");
 
+	spi_init();
 	enc28j60Init();
 
 	GIMSK |= (1 << INT1);

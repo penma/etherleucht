@@ -25,21 +25,34 @@
 static uint16_t NextPacketPtr;
 static uint8_t REVID;
 
+void enc_spi_init() {
+	DDRA |= (1 << PA1);
+	enc_spi_select(0);
+}
+
+void enc_spi_select(uint8_t act) {
+	if (act) {
+		PORTA &= ~(1 << PA1);
+	} else {
+		PORTA |= (1 << PA1);
+	}
+}
+
 //*********************************************************************************************************
 //
 // Sende Rad Command
 //
 //*********************************************************************************************************
 static uint8_t enc28j60ReadOp(uint8_t op, uint8_t address) {
-	SPI_Active(1);
+	enc_spi_select(1);
 
-	SPI_ReadWrite(op | (address & ADDR_MASK));
-	if (address & 0x80) {
-		SPI_ReadWrite(0x00);
+	spi_write(op | (address & ADDR_MASK));
+	if (address & SPRD_MASK) {
+		spi_read();
 	}
-	uint8_t data = SPI_ReadWrite(0x00);
+	uint8_t data = spi_read();
 
-	SPI_Active(0);
+	enc_spi_select(0);
 	return data;
 }
 
@@ -49,12 +62,12 @@ static uint8_t enc28j60ReadOp(uint8_t op, uint8_t address) {
 //
 //*********************************************************************************************************
 static void enc28j60WriteOp(uint8_t op, uint8_t address, uint8_t data) {
-	SPI_Active(1);
+	enc_spi_select(1);
 
-	SPI_ReadWrite(op | (address & ADDR_MASK));
-	SPI_ReadWrite(data);
+	spi_write(op | (address & ADDR_MASK));
+	spi_write(data);
 
-	SPI_Active(0);
+	enc_spi_select(0);
 }
 
 //*********************************************************************************************************
@@ -63,12 +76,12 @@ static void enc28j60WriteOp(uint8_t op, uint8_t address, uint8_t data) {
 //
 //*********************************************************************************************************
 static void enc28j60ReadBuffer(uint16_t len, uint8_t *data){
-	SPI_Active(1);
+	enc_spi_select(1);
 
-	SPI_ReadWrite(ENC28J60_READ_BUF_MEM);
+	spi_write(ENC28J60_READ_BUF_MEM);
 	SPI_FastRead2Mem(data, len);
 
-	SPI_Active(0);
+	enc_spi_select(0);
 }
 
 //*********************************************************************************************************
@@ -77,12 +90,12 @@ static void enc28j60ReadBuffer(uint16_t len, uint8_t *data){
 //
 //*********************************************************************************************************
 static void enc28j60WriteBuffer(uint16_t len, const uint8_t *const data) {
-	SPI_Active(1);
+	enc_spi_select(1);
 
-	SPI_ReadWrite(ENC28J60_WRITE_BUF_MEM);
+	spi_write(ENC28J60_WRITE_BUF_MEM);
 	SPI_FastMem2Write(data, len);
 
-	SPI_Active(0);
+	enc_spi_select(0);
 }
 
 //*********************************************************************************************************
@@ -180,8 +193,7 @@ static void enc28j60PhyWrite(uint8_t address, uint16_t data) {
 //
 //*********************************************************************************************************
 void enc28j60Init() {
-	SPI_init();
-	SPI_Active(0);
+	enc_spi_init();
 
 	// perform system reset
 	enc28j60WriteOp(ENC28J60_SOFT_RESET, 0, ENC28J60_SOFT_RESET);
@@ -189,8 +201,10 @@ void enc28j60Init() {
 	/* wait for reset to complete
 	 * XXX is this reliable enough in case of total communication failure?
 	 */
+	DebugStr("wait");
 	while (!(enc28j60Read(ESTAT) & ESTAT_CLKRDY)) {
 	}
+	DebugStr(".\n");
 
 	REVID = enc28j60Read(EREVID);
 
@@ -351,6 +365,7 @@ uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t *packet) {
 	// decrement the packet counter indicate we are done with this packet
 	uint16_t wtf = enc28j60Read16(ERXRDPTL);
 	if (wtf != NextPacketPtr - 1) {
+		for (int i = 0; i < 4; i++) {
 		DebugStr("exp ");
 		DebugHex(wtf >> 8);
 		DebugHex(wtf & 0xff);
@@ -358,6 +373,7 @@ uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t *packet) {
 		DebugHex((NextPacketPtr - 1) >> 8);
 		DebugHex((NextPacketPtr - 1) & 0xff);
 		DebugStr("\n");
+		}
 		while (1) {}
 	}
 	enc_acknowledge_packet();

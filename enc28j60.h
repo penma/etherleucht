@@ -1,29 +1,3 @@
-/*! \file enc28j60.h \brief Microchip ENC28J60 Ethernet Interface Driver. */
-//*****************************************************************************
-//
-// File Name	: 'enc28j60.h'
-// Title		: Microchip ENC28J60 Ethernet Interface Driver
-// Author		: Pascal Stang (c)2005
-// Created		: 9/22/2005
-// Revised		: 9/22/2005
-// Version		: 0.1
-// Target MCU	: Atmel AVR series
-// Editor Tabs	: 4
-//
-///	\ingroup network
-///	\defgroup enc28j60 Microchip ENC28J60 Ethernet Interface Driver (enc28j60.c)
-///	\code #include "net/enc28j60.h" \endcode
-///	\par Overview
-///		This driver provides initialization and transmit/receive
-///	functions for the Microchip ENC28J60 10Mb Ethernet Controller and PHY.
-/// This chip is novel in that it is a full MAC+PHY interface all in a 28-pin
-/// chip, using an SPI interface to the host processor.
-///
-//
-//*****************************************************************************
-//@{
-
-
 #ifndef ENC28J60_H
 #define ENC28J60_H
 
@@ -96,37 +70,37 @@
 #define ERXFCON		(0x18|0x20)
 #define EPKTCNT		(0x19|0x20)
 // Bank 2 registers
-#define MACON1		(0x00|0x40|0x80)
-#define MACON2		(0x01|0x40|0x80)
-#define MACON3		(0x02|0x40|0x80)
-#define MACON4		(0x03|0x40|0x80)
-#define MABBIPG		(0x04|0x40|0x80)
-#define MAIPGL		(0x06|0x40|0x80)
-#define MAIPGH		(0x07|0x40|0x80)
-#define MACLCON1	(0x08|0x40|0x80)
-#define MACLCON2	(0x09|0x40|0x80)
-#define MAMXFLL		(0x0A|0x40|0x80)
-#define MAMXFLH		(0x0B|0x40|0x80)
-#define MAPHSUP		(0x0D|0x40|0x80)
-#define MICON		(0x11|0x40|0x80)
-#define MICMD		(0x12|0x40|0x80)
-#define MIREGADR	(0x14|0x40|0x80)
-#define MIWRL		(0x16|0x40|0x80)
-#define MIWRH		(0x17|0x40|0x80)
-#define MIRDL		(0x18|0x40|0x80)
-#define MIRDH		(0x19|0x40|0x80)
+#define MACON1		(0x00|0x40|SPRD_MASK)
+#define MACON2		(0x01|0x40|SPRD_MASK)
+#define MACON3		(0x02|0x40|SPRD_MASK)
+#define MACON4		(0x03|0x40|SPRD_MASK)
+#define MABBIPG		(0x04|0x40|SPRD_MASK)
+#define MAIPGL		(0x06|0x40|SPRD_MASK)
+#define MAIPGH		(0x07|0x40|SPRD_MASK)
+#define MACLCON1	(0x08|0x40|SPRD_MASK)
+#define MACLCON2	(0x09|0x40|SPRD_MASK)
+#define MAMXFLL		(0x0A|0x40|SPRD_MASK)
+#define MAMXFLH		(0x0B|0x40|SPRD_MASK)
+#define MAPHSUP		(0x0D|0x40|SPRD_MASK)
+#define MICON		(0x11|0x40|SPRD_MASK)
+#define MICMD		(0x12|0x40|SPRD_MASK)
+#define MIREGADR	(0x14|0x40|SPRD_MASK)
+#define MIWRL		(0x16|0x40|SPRD_MASK)
+#define MIWRH		(0x17|0x40|SPRD_MASK)
+#define MIRDL		(0x18|0x40|SPRD_MASK)
+#define MIRDH		(0x19|0x40|SPRD_MASK)
 // Bank 3 registers
-#define MAADR1		(0x00|0x60|0x80)
-#define MAADR0		(0x01|0x60|0x80)
-#define MAADR3		(0x02|0x60|0x80)
-#define MAADR2		(0x03|0x60|0x80)
-#define MAADR5		(0x04|0x60|0x80)
-#define MAADR4		(0x05|0x60|0x80)
+#define MAADR1		(0x00|0x60|SPRD_MASK)
+#define MAADR0		(0x01|0x60|SPRD_MASK)
+#define MAADR3		(0x02|0x60|SPRD_MASK)
+#define MAADR2		(0x03|0x60|SPRD_MASK)
+#define MAADR5		(0x04|0x60|SPRD_MASK)
+#define MAADR4		(0x05|0x60|SPRD_MASK)
 #define EBSTSD		(0x06|0x60)
 #define EBSTCON		(0x07|0x60)
 #define EBSTCSL		(0x08|0x60)
 #define EBSTCSH		(0x09|0x60)
-#define MISTAT		(0x0A|0x60|0x80)
+#define MISTAT		(0x0A|0x60|SPRD_MASK)
 #define EREVID		(0x12|0x60)
 #define ECOCON		(0x15|0x60)
 #define EFLOCON		(0x17|0x60)
@@ -240,30 +214,12 @@
 #define ENC28J60_BIT_FIELD_CLR	0xA0
 #define ENC28J60_SOFT_RESET	0xFF
 
-// buffer boundaries applied to internal 8K ram
-// entire available packet buffer space is allocated
-/*
-#define TXSTART_INIT   	0x1800	// start TX buffer at 0
-#define RXSTART_INIT   	0x0000	// give TX buffer space for one full ethernet frame (~1500 bytes)
-#define RXSTOP_INIT    	0x17FE	// receive buffer gets the rest
-*/
-
 #define TXSTART_INIT 0x1800
 #define RXSTART_INIT 0x0000
 #define RXSTOP_INIT 0x16FE
 
-//#define TXSTART_INIT   	MAX_FRAMELEN	// start TX buffer at 0
-//#define RXSTART_INIT   	MAX_FRAMELEN+1	// give TX buffer space for one full ethernet frame (~1500 bytes)
-
 #define	MAX_FRAMELEN	400	// maximum ethernet frame length
 
-// unsigned char buffer[MAX_FRAMELEN];
-
-// Ethernet constants
-// #define ETHERNET_MIN_PACKET_LENGTH	0x3C
-// #define ETHERNET_HEADER_LENGTH	0x0E
-
-// MAC address for this interface
 
 #ifndef ENC28J60_MAC0
 #define ENC28J60_MAC0 0x00
@@ -274,13 +230,9 @@
 #define ENC28J60_MAC5 0xc2
 #endif
 
-void nicSetMacAddress( void ); /* FIXME */
-
-//! initialize the ethernet interface for transmit/receive
 void enc28j60Init();
 
 void enc28j60PacketSend(uint16_t, const uint8_t*const);
 uint16_t enc28j60PacketReceive(uint16_t, uint8_t*);
 
 #endif
-//@}

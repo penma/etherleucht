@@ -283,11 +283,14 @@ uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t *packet) {
 	// check if a packet has been received and buffered
 	if (!(enc28j60Read(EIR) & EIR_PKTIF)) {
 		if (enc28j60Read(EPKTCNT) == 0) {
+			DebugStr("!R\n");
 			return 0;
 		}
 	}
 
-	DebugStr("R ");
+	DebugStr("P");
+	DebugNum(enc28j60Read(EPKTCNT));
+	DebugStr(" R");
 	DebugHex(NextPacketPtr >> 8);
 	DebugHex(NextPacketPtr & 0xff);
 

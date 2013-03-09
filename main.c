@@ -1,6 +1,7 @@
 
 #include <avr/interrupt.h>
 #include <util/delay.h>
+#include <util/atomic.h>
 #include <stdlib.h>
 
 #include "enc28j60.h"
@@ -49,17 +50,43 @@ void DebugHex(uint8_t wat) {
 	DebugNibble(wat & 0xf);
 }
 
+void DebugNum(uint16_t wat) {
+	if (wat >= 10000) goto n5;
+	if (wat >= 1000) goto n4;
+	if (wat >= 100) goto n3;
+	if (wat >= 10) goto n2;
+	goto n1;
+	n5: DebugNibble(wat / 10000);
+	wat %= 10000;
+	n4: DebugNibble(wat / 1000);
+	wat %= 1000;
+	n3: DebugNibble(wat / 100);
+	wat %= 100;
+	n2: DebugNibble(wat / 10);
+	wat %= 10;
+	n1: DebugNibble(wat);
+}
+
+ISR(INT1_vect) {
+	uint8_t wat[64];
+	DebugStr("INT\n");
+	if (0 != enc28j60PacketReceive(64, wat)) {
+		if (wat[42] == '0') {
+			DebugStr("YAY\n");
+		}
+	}
+}
+
 void main() {
 	DDRB |= (1 << DBG_DATA) | (1 << DBG_SHIFT) | (1 << DBG_SYNC);
 	PORTB &= ~( (1 << DBG_DATA) | (1 << DBG_SHIFT) | (1 << DBG_SYNC) );
 
-	for (int i = 0; i < 100; i++) {
-		DebugHex(i);
-		DebugStr(" wat\n");
-		_delay_ms(30);
-	}
+	DebugStr("* O HAI *\n");
 
 	enc28j60Init();
+
+	GIMSK |= (1 << INT1);
+	sei();
 
 	uint8_t WAT = 0;
 	while (1) {
@@ -100,16 +127,12 @@ void main() {
 		wat[44] = 0;
 		wat[45] = 0;
 
-
 		DebugStr("send pkg\n");
-		enc28j60PacketSend(46, wat);
+		ATOMIC_BLOCK(ATOMIC_FORCEON) {
+			enc28j60PacketSend(46, wat);
+		}
 		_delay_ms(1000);
 
-		while (0 != enc28j60PacketReceive(64, wat)) {
-			if (wat[42] == '0') {
-				DebugStr("YAY\n");
-			}
-		}
 	}
 }
 

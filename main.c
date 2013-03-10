@@ -14,14 +14,14 @@ ISR(INT1_vect) {
 	uint16_t len = enc_rx_has_packet();
 	if (len) {
 		if (len > 64) {
-			enc_acknowledge_packet();
+			enc_rx_acknowledge();
 		} else {
-			enc_buf_read_seek(0);
-			enc_buf_read_start();
-			enc_buf_read_bulk(wat, len);
-			enc_buf_read_stop();
+			enc_rx_seek(0);
+			enc_rx_start();
+			enc_rx_read_buf(wat, len);
+			enc_rx_stop();
 
-			enc_acknowledge_packet();
+			enc_rx_acknowledge();
 
 			for (int y = 0; y < len / 6; y++) {
 				for (int x = 0; x < 6; x++) {
@@ -46,7 +46,6 @@ void main() {
 	GIMSK |= (1 << INT1);
 	sei();
 
-	uint8_t WAT = 0;
 	while (1) {
 		uint8_t wat[32];
 
@@ -78,12 +77,12 @@ void main() {
 
 		debug_str("send pkg\n");
 		ATOMIC_BLOCK(ATOMIC_FORCEON) {
-			enc_buf_write_seek(0);
-			enc_buf_write_start();
+			enc_tx_seek(0);
+			enc_tx_start();
 
-			enc_buf_write_bulk(wat, 20 + 8 + 4);
+			enc_tx_write_buf(wat, 20 + 8 + 4);
 
-			enc_buf_write_stop();
+			enc_tx_stop();
 			enc_tx_do(20 + 8 + 4, 0x0800, 0);
 		}
 		_delay_ms(1000);

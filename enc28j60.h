@@ -231,12 +231,18 @@
 #endif
 
 void enc_init();
-void enc28j60PacketSend(uint16_t, const uint8_t*const);
+
 uint16_t enc_rx_has_packet();
-void enc_buf_read_seek(uint16_t pos);
-void enc_buf_read_bulk(uint8_t dst[], uint16_t len);
-void enc_buf_write_seek(uint16_t pos);
-void enc_buf_write_bulk(uint8_t src[], uint16_t len);
+void enc_rx_acknowledge();
+void enc_rx_start();
+void enc_rx_stop();
+void enc_rx_seek(uint16_t pos);
+void enc_rx_read_buf(uint8_t dst[], uint16_t len);
+
+void enc_tx_start();
+void enc_tx_stop();
+void enc_tx_seek(uint16_t pos);
+void enc_tx_write_buf(uint8_t src[], uint16_t len);
 void enc_tx_do(uint16_t len, uint16_t ethertype, uint8_t is_reply);
 
 #endif

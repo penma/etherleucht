@@ -62,23 +62,6 @@ static void enc_op_write(uint8_t op, uint8_t address, uint8_t data) {
 	enc_spi_select(0);
 }
 
-
-//*********************************************************************************************************
-//
-// Buffer schreiben
-//
-//*********************************************************************************************************
-static void enc28j60WriteBuffer(uint16_t len, const uint8_t *const data) {
-	enc_spi_select(1);
-
-	spi_write(ENC28J60_WRITE_BUF_MEM);
-	for (int i = 0; i < len; i++) {
-		spi_write(data[i]);
-	}
-
-	enc_spi_select(0);
-}
-
 static void enc_set_bank(uint8_t address) {
 	// set the bank (if needed)
 	static uint8_t bank = 0;
@@ -197,24 +180,7 @@ void enc_init() {
 	enc_phy_write(PHLCON, 0xc1a);
 }
 
-void enc28j60PacketSend(uint16_t len, const uint8_t *const packet) {
-	// Set the write pointer to start of transmit buffer area
-	enc_reg_write16(EWRPTL, TXSTART_INIT);
-
-	// Set the TXND pointer to correspond to the packet size given
-	enc_reg_write16(ETXNDL, TXSTART_INIT + len);
-
-	// write per-packet control byte
-	enc_op_write(ENC28J60_WRITE_BUF_MEM, 0, 0x00);
-
-	// copy the packet into the transmit buffer
-	enc28j60WriteBuffer(len, packet);
-
-	// send the contents of the transmit buffer onto the network
-
-}
-
-void enc_acknowledge_packet() {
+void enc_rx_acknowledge() {
 	/* errata B7 #12: ERXRDPT must contain an odd value */
 	if (packet_next == RXST) {
 		enc_reg_write16(ERXRDPTL, RXND);
@@ -225,25 +191,25 @@ void enc_acknowledge_packet() {
 	enc_op_write(ENC28J60_BIT_FIELD_SET, ECON2, ECON2_PKTDEC);
 }
 
-void enc_buf_read_start() {
+void enc_rx_start() {
 	enc_spi_select(1);
 	spi_write(ENC28J60_READ_BUF_MEM);
 }
 
-void enc_buf_read_stop() {
+void enc_rx_stop() {
 	enc_spi_select(0);
 }
 
-uint8_t enc_buf_read_byte() {
+uint8_t enc_rx_read_byte() {
 	return spi_read();
 }
 
-uint16_t enc_buf_read_intle() {
+uint16_t enc_rx_read_intle() {
 	uint8_t low = spi_read();
 	return low | (spi_read() << 8);
 }
 
-void enc_buf_read_bulk(uint8_t dst[], uint16_t len) {
+void enc_rx_read_buf(uint8_t dst[], uint16_t len) {
 	for (uint16_t i = 0; i < len; i++) {
 		dst[i] = spi_read();
 	}
@@ -276,15 +242,15 @@ uint16_t enc_rx_has_packet() {
 	packet_current = packet_next;
 
 	/* read headers, update pointers */
-	enc_buf_read_start();
-	packet_next = enc_buf_read_intle();
+	enc_rx_start();
+	packet_next = enc_rx_read_intle();
 
 	if (cn <= 10) {
 		debug_str("\n>");
 		debug_hex16(packet_next);
 	}
 
-	uint16_t len = enc_buf_read_intle();
+	uint16_t len = enc_rx_read_intle();
 
 	if (cn <= 10) {
 		debug_str("+");
@@ -295,10 +261,10 @@ uint16_t enc_rx_has_packet() {
 	// the receive buffer
 	len -= 4;
 
-	/* receive status */
-	uint16_t rxstat = enc_buf_read_intle();
+	/* receive status (ignored) */
+	enc_rx_read_intle();
 
-	enc_buf_read_stop();
+	enc_rx_stop();
 
 	return len;
 }
@@ -306,7 +272,7 @@ uint16_t enc_rx_has_packet() {
 /* seek to receive buffer location
  * relative to current packet's payload
  */
-void enc_buf_read_seek(uint16_t pos) {
+void enc_rx_seek(uint16_t pos) {
 	uint16_t target = packet_current + 6 + pos;
 	if (target > RXND) {
 		target = RXST + target - RXND - 1;
@@ -317,24 +283,24 @@ void enc_buf_read_seek(uint16_t pos) {
 /* seek to transmit buffer location
  * relative to packet payload
  */
-void enc_buf_write_seek(uint16_t pos) {
+void enc_tx_seek(uint16_t pos) {
 	enc_reg_write16(EWRPTL, TXSTART_INIT + 14 + 1);
 }
 
-void enc_buf_write_start() {
+void enc_tx_start() {
 	enc_spi_select(1);
 	spi_write(ENC28J60_WRITE_BUF_MEM);
 }
 
-void enc_buf_write_stop() {
+void enc_tx_stop() {
 	enc_spi_select(0);
 }
 
-void enc_buf_write_byte(uint8_t c) {
+void enc_tx_write_byte(uint8_t c) {
 	spi_write(c);
 }
 
-void enc_buf_write_bulk(uint8_t src[], uint16_t len) {
+void enc_tx_write_buf(uint8_t src[], uint16_t len) {
 	for (uint16_t i = 0; i < len; i++) {
 		spi_write(src[i]);
 	}
@@ -352,30 +318,30 @@ void enc_tx_do(uint16_t len, uint16_t ethertype, uint8_t is_reply) {
 	enc_reg_write16(ETXNDL, TXSTART_INIT + len + 14);
 
 	enc_reg_write16(EWRPTL, TXSTART_INIT);
-	enc_buf_write_start();
-	enc_buf_write_byte(0);
+	enc_tx_start();
+	enc_tx_write_byte(0);
 
 	/* destination address */
 	if (is_reply) {
 		debug_str("! no reply addr\n");
 		debug_str("recorded yet\n");
 		for (int i = 0; i < 6; i++) {
-			enc_buf_write_byte(0xff);
+			enc_tx_write_byte(0xff);
 		}
 	} else {
 		for (int i = 0; i < 6; i++) {
-			enc_buf_write_byte(0xff);
+			enc_tx_write_byte(0xff);
 		}
 	}
 
 	/* source address - that's us! */
-	enc_buf_write_bulk(mac, 6);
+	enc_tx_write_buf(mac, 6);
 
 	/* ethertype */
-	enc_buf_write_byte(ethertype >> 8);
-	enc_buf_write_byte(ethertype & 0xff);
+	enc_tx_write_byte(ethertype >> 8);
+	enc_tx_write_byte(ethertype & 0xff);
 
-	enc_buf_write_stop();
+	enc_tx_stop();
 
 	/* finally, transmit */
 	enc_op_write(ENC28J60_BIT_FIELD_SET, ECON1, ECON1_TXRTS);

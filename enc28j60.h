@@ -215,8 +215,8 @@
 #define ENC28J60_SOFT_RESET	0xFF
 
 #define TXSTART_INIT 0x1800
-#define RXSTART_INIT 0x0000
-#define RXSTOP_INIT 0x16FE
+#define RXST 0x0000
+#define RXND 0x16FF
 
 #define	MAX_FRAMELEN	400	// maximum ethernet frame length
 
@@ -230,7 +230,7 @@
 #define ENC28J60_MAC5 0xc2
 #endif
 
-void enc28j60Init();
+void enc_init();
 void enc_spi_select(uint8_t act);
 void enc28j60PacketSend(uint16_t, const uint8_t*const);
 uint16_t enc28j60PacketReceive(uint16_t, uint8_t*);

@@ -10,7 +10,7 @@
 
 ISR(INT1_vect) {
 	uint8_t wat[64];
-	debug_str("INT\n");
+	debug_str("INT ");
 	if (0 != enc28j60PacketReceive(64, wat)) {
 		if (wat[42] == '0') {
 			debug_str("*** YAY ***\n");
@@ -22,7 +22,7 @@ void main() {
 	debug_init();
 
 	spi_init();
-	enc28j60Init();
+	enc_init();
 
 	GIMSK |= (1 << INT1);
 	sei();

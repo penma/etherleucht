@@ -174,12 +174,12 @@ void enc_init() {
 	/* Bank 3 stuff
 	 * MAC address for Unicast packet filtering
 	 */
-	enc_reg_write(MAADR5, 0x56);
-	enc_reg_write(MAADR4, 0x34);
-	enc_reg_write(MAADR3, 0x12);
-	enc_reg_write(MAADR2, 0xcd);
-	enc_reg_write(MAADR1, 0xcc);
-	enc_reg_write(MAADR0, 0x42);
+	enc_reg_write(MAADR5, 0x42);
+	enc_reg_write(MAADR4, 0xcc);
+	enc_reg_write(MAADR3, 0xcd);
+	enc_reg_write(MAADR2, 0x12);
+	enc_reg_write(MAADR1, 0x34);
+	enc_reg_write(MAADR0, 0x56);
 
 	/* no loopback of transmitted frames */
 	enc_phy_write(PHCON2, PHCON2_HDLDIS);
@@ -253,8 +253,9 @@ void enc_buf_read_bulk(uint8_t dst[], uint16_t len) {
 /* check if there is a packet waiting to be processed.
  * if there is, also read the status headers, update next/current packet
  * pointers.
+ * will return payload length, or 0
  */
-uint8_t enc_rx_has_packet() {
+uint16_t enc_rx_has_packet() {
 	if (!(enc_reg_read(EIR) & EIR_PKTIF)) {
 		if (enc_reg_read(EPKTCNT) == 0) {
 			debug_str("!R\n");
@@ -299,7 +300,7 @@ uint8_t enc_rx_has_packet() {
 
 	enc_buf_read_stop();
 
-	return len; /* do not depend on this */
+	return len;
 }
 
 /* seek to receive buffer location
@@ -311,30 +312,5 @@ void enc_buf_read_seek(uint16_t pos) {
 		target = RXST + target - RXND - 1;
 	}
 	enc_reg_write16(ERDPTL, target);
-}
-
-uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t *packet) {
-	uint16_t len = enc_rx_has_packet();
-	if (!len) {
-		return 0;
-	}
-
-	// limit retrieve length
-	// len = MIN(len, maxlen);
-	// When len bigger than maxlen, ignore the packet und read next packetptr
-	if (len > maxlen) {
-		enc_acknowledge_packet();
-		return(0);
-	}
-	// copy the packet without CRC from the receive buffer
-	enc_buf_read_seek(0);
-	enc_buf_read_start();
-	enc_buf_read_bulk(packet, len);
-	enc_buf_read_stop();
-
-	// decrement the packet counter indicate we are done with this packet
-	enc_acknowledge_packet();
-
-	return len;
 }
 

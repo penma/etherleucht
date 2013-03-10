@@ -232,6 +232,8 @@
 
 void enc_init();
 void enc28j60PacketSend(uint16_t, const uint8_t*const);
-uint16_t enc28j60PacketReceive(uint16_t, uint8_t*);
+uint16_t enc_rx_has_packet();
+void enc_buf_read_seek(uint16_t pos);
+void enc_buf_read_bulk(uint8_t dst[], uint16_t len);
 
 #endif

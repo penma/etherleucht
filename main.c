@@ -10,10 +10,29 @@
 
 ISR(INT1_vect) {
 	uint8_t wat[64];
-	//debug_str("INT ");
-	if (0 != enc28j60PacketReceive(64, wat)) {
-		if (wat[42] == '0') {
-			debug_str("*** YAY ***\n");
+
+	uint16_t len = enc_rx_has_packet();
+	if (len) {
+		if (len > 64) {
+			enc_acknowledge_packet();
+		} else {
+			enc_buf_read_seek(0);
+			enc_buf_read_start();
+			enc_buf_read_bulk(wat, len);
+			enc_buf_read_stop();
+
+			enc_acknowledge_packet();
+
+			for (int y = 0; y < len / 6; y++) {
+				for (int x = 0; x < 6; x++) {
+					debug_hex8(wat[6*y + x]);
+				}
+				debug_str("\n");
+			}
+
+			if (wat[42] == '0') {
+				debug_str("*** YAY ***\n");
+			}
 		}
 	}
 }

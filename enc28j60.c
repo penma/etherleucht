@@ -250,6 +250,24 @@ void enc_acknowledge_packet() {
 	enc_op_write(ENC28J60_BIT_FIELD_SET, ECON2, ECON2_PKTDEC);
 }
 
+void enc_buf_read_start() {
+	enc_spi_select(1);
+	spi_write(ENC28J60_READ_BUF_MEM);
+}
+
+void enc_buf_read_stop() {
+	enc_spi_select(0);
+}
+
+uint8_t enc_buf_read_byte() {
+	return spi_read();
+}
+
+uint16_t enc_buf_read_intle() {
+	uint8_t low = spi_read();
+	return low | (spi_read() << 8);
+}
+
 uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t *packet) {
 	uint16_t rxstat;
 	uint16_t len;
@@ -267,23 +285,19 @@ uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t *packet) {
 	debug_str(" R");
 	debug_hex16(NextPacketPtr);
 
-	// Make absolutely certain that any previous packet was discarded	
-	//if( WasDiscarded == FALSE)
-	//	MACDiscardRx();
-
 	// Set the read pointer to the start of the received packet
 	enc_reg_write16(ERDPTL, NextPacketPtr);
 
+	enc_buf_read_start();
+
 	// read the next packet pointer
-	NextPacketPtr  = enc_op_read(ENC28J60_READ_BUF_MEM, 0);
-	NextPacketPtr |= enc_op_read(ENC28J60_READ_BUF_MEM, 0)<<8;
+	NextPacketPtr = enc_buf_read_intle();
 
 	debug_str("\n>");
 	debug_hex16(NextPacketPtr);
 
 	// read the packet length
-	len  = enc_op_read(ENC28J60_READ_BUF_MEM, 0);
-	len |= enc_op_read(ENC28J60_READ_BUF_MEM, 0)<<8;
+	len = enc_buf_read_intle();
 
 	debug_str("+");
 	debug_hex16(len);
@@ -293,8 +307,9 @@ uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t *packet) {
 	len -= 4;
 
 	// read the receive status
-	rxstat  = enc_op_read(ENC28J60_READ_BUF_MEM, 0);
-	rxstat |= enc_op_read(ENC28J60_READ_BUF_MEM, 0)<<8;
+	rxstat = enc_buf_read_intle();
+
+	enc_buf_read_stop();
 
 	// limit retrieve length
 	// len = MIN(len, maxlen);

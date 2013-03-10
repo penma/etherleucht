@@ -10,7 +10,7 @@
 
 ISR(INT1_vect) {
 	uint8_t wat[64];
-	debug_str("INT ");
+	//debug_str("INT ");
 	if (0 != enc28j60PacketReceive(64, wat)) {
 		if (wat[42] == '0') {
 			debug_str("*** YAY ***\n");

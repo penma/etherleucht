@@ -16,28 +16,28 @@
 // chip, using an SPI interface to the host processor.
 //
 //*****************************************************************************
-  //#include <avr/io.h>
-  //#include <avr/interrupt.h>
+
+
 #include "enc28j60.h"
 #include "spi.h"
-#include <util/delay.h>  
+#include <util/delay.h>
 
 #include "debug.h"
 
 static uint16_t NextPacketPtr;
-static uint8_t REVID;
 
-static void enc_spi_init() {
-	DDRA |= (1 << PA1);
-	enc_spi_select(0);
-}
 
-void enc_spi_select(uint8_t act) {
+static void enc_spi_select(uint8_t act) {
 	if (act) {
 		PORTA &= ~(1 << PA1);
 	} else {
 		PORTA |= (1 << PA1);
 	}
+}
+
+static void enc_spi_init() {
+	DDRA |= (1 << PA1);
+	enc_spi_select(0);
 }
 
 static uint8_t enc_op_read(uint8_t op, uint8_t address) {
@@ -62,19 +62,6 @@ static void enc_op_write(uint8_t op, uint8_t address, uint8_t data) {
 	enc_spi_select(0);
 }
 
-//*********************************************************************************************************
-//
-// Buffer einlesen
-//
-//*********************************************************************************************************
-static void enc28j60ReadBuffer(uint16_t len, uint8_t *data){
-	enc_spi_select(1);
-
-	spi_write(ENC28J60_READ_BUF_MEM);
-	SPI_FastRead2Mem(data, len);
-
-	enc_spi_select(0);
-}
 
 //*********************************************************************************************************
 //
@@ -85,16 +72,13 @@ static void enc28j60WriteBuffer(uint16_t len, const uint8_t *const data) {
 	enc_spi_select(1);
 
 	spi_write(ENC28J60_WRITE_BUF_MEM);
-	SPI_FastMem2Write(data, len);
+	for (int i = 0; i < len; i++) {
+		spi_write(data[i]);
+	}
 
 	enc_spi_select(0);
 }
 
-//*********************************************************************************************************
-//
-// 
-//
-//*********************************************************************************************************
 static void enc_set_bank(uint8_t address) {
 	// set the bank (if needed)
 	static uint8_t bank = 0;
@@ -105,21 +89,11 @@ static void enc_set_bank(uint8_t address) {
 	}
 }
 
-//*********************************************************************************************************
-//
-// 
-//
-//*********************************************************************************************************
 static uint8_t enc_reg_read(uint8_t address) {
 	enc_set_bank(address);
 	return enc_op_read(ENC28J60_READ_CTRL_REG, address);
 }
 
-//*********************************************************************************************************
-//
-// 
-//
-//*********************************************************************************************************
 static void enc_reg_write(uint8_t address, uint8_t data) {
 	enc_set_bank(address);
 	enc_op_write(ENC28J60_WRITE_CTRL_REG, address, data);
@@ -173,7 +147,9 @@ void enc_init() {
 	 */
 	while (!(enc_reg_read(ESTAT) & ESTAT_CLKRDY)) { }
 
-	REVID = enc_reg_read(EREVID);
+	debug_str("revid ");
+	debug_hex8(enc_reg_read(EREVID));
+	debug_str("\n");
 
 	/* Bank 0 stuff
 	 * Ethernet buffer addresses
@@ -268,6 +244,12 @@ uint16_t enc_buf_read_intle() {
 	return low | (spi_read() << 8);
 }
 
+void enc_buf_read_bulk(uint8_t dst[], uint16_t len) {
+	for (uint16_t i = 0; i < len; i++) {
+		dst[i] = spi_read();
+	}
+}
+
 uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t *packet) {
 	uint16_t rxstat;
 	uint16_t len;
@@ -280,10 +262,13 @@ uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t *packet) {
 		}
 	}
 
-	debug_str("P");
-	debug_dec16(enc_reg_read(EPKTCNT));
-	debug_str(" R");
-	debug_hex16(NextPacketPtr);
+	uint16_t cn = enc_reg_read(EPKTCNT);
+	if (cn <= 10) {
+		debug_str("P");
+		debug_dec16(cn);
+		debug_str(" R");
+		debug_hex16(NextPacketPtr);
+	}
 
 	// Set the read pointer to the start of the received packet
 	enc_reg_write16(ERDPTL, NextPacketPtr);
@@ -293,15 +278,19 @@ uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t *packet) {
 	// read the next packet pointer
 	NextPacketPtr = enc_buf_read_intle();
 
-	debug_str("\n>");
-	debug_hex16(NextPacketPtr);
+	if (cn <= 10) {
+		debug_str("\n>");
+		debug_hex16(NextPacketPtr);
+	}
 
 	// read the packet length
 	len = enc_buf_read_intle();
 
-	debug_str("+");
-	debug_hex16(len);
-	debug_str("\n");
+	if (cn <= 10) {
+		debug_str("+");
+		debug_hex16(len);
+		debug_str("\n");
+	}
 	// remove CRC from len (we don't read the CRC from
 	// the receive buffer
 	len -= 4;
@@ -319,7 +308,9 @@ uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t *packet) {
 		return(0);
 	}
 	// copy the packet without CRC from the receive buffer
-	enc28j60ReadBuffer(len, packet);
+	enc_buf_read_start();
+	enc_buf_read_bulk(packet, len);
+	enc_buf_read_stop();
 
 	// decrement the packet counter indicate we are done with this packet
 	enc_acknowledge_packet();

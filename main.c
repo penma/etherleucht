@@ -48,46 +48,43 @@ void main() {
 
 	uint8_t WAT = 0;
 	while (1) {
-		uint8_t wat[64];
-		
-		wat[0] = wat[1] = wat[2] = wat[3] = wat[4] = wat[5] = 0xff;
-		wat[6] = 0x42;
-		wat[7] = 0xcc;
-		wat[8] = 0xcd;
-		wat[9] = 0x12;
-		wat[10] = 0x34;
-		wat[11] = 0x56;
+		uint8_t wat[32];
 
-		wat[12] = 0x08;
-		wat[13] = 0x00;
+		wat[ 0] = 0x45;
+		wat[ 1] = 0x00;
+		wat[ 2] = 0x00;
+		wat[ 3] = 0x20;
+		wat[ 4] = 0x23;
+		wat[ 5] = 0x42;
+		wat[ 6] = wat[7] = 0;
+		wat[ 8] = 0xff;
+		wat[ 9] = 0x11;
+		wat[10] = 0x17;
+		wat[11] = 0x31;
 
-		wat[14] = 0x45;
-		wat[15] = 0x00;
-		wat[16] = 0x00;
-		wat[17] = 0x20;
-		wat[18] = 0x23;
-		wat[19] = 0x42;
-		wat[20] = wat[21] = 0;
-		wat[22] = 0xff;
-		wat[23] = 0x11;
-		wat[24] = 0x17;
-		wat[25] = 0x31;
+		wat[12] = wat[16] = 172;
+		wat[13] = wat[17] = 22;
+		wat[14] = wat[18] = 26;
+		wat[15] = 224;
+		wat[19] = 15;
 
-		wat[26] = wat[30] = 172;
-		wat[27] = wat[31] = 22;
-		wat[28] = wat[32] = 26;
-		wat[29] = 224;
-		wat[33] = 15;
+		wat[20] = wat[21] = wat[22] = wat[23] = wat[24] = wat[25] = wat[26] = wat[27] = 0;
 
-		for (int i = 0; i < 10; i++) {
-			wat[34 + i] = WAT + i;
-		}
-		wat[44] = 0;
-		wat[45] = 0;
+		wat[28] = 'w';
+		wat[29] = 'a';
+		wat[30] = 't';
+		wat[31] = '!';
+
 
 		debug_str("send pkg\n");
 		ATOMIC_BLOCK(ATOMIC_FORCEON) {
-			enc28j60PacketSend(46, wat);
+			enc_buf_write_seek(0);
+			enc_buf_write_start();
+
+			enc_buf_write_bulk(wat, 20 + 8 + 4);
+
+			enc_buf_write_stop();
+			enc_tx_do(20 + 8 + 4, 0x0800, 0);
 		}
 		_delay_ms(1000);
 

@@ -19,20 +19,21 @@ void debug_init() {
 void debug_char(uint8_t data) {
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
 		PORTB |= (1 << DBG_SYNC);
-		__builtin_avr_delay_cycles(20);
+		__builtin_avr_delay_cycles(50);
 		PORTB &= ~(1 << DBG_SYNC);
-		__builtin_avr_delay_cycles(20);
+		__builtin_avr_delay_cycles(50);
 
 		for (int i = 8; i > 0; i--) {
-			if (data & (1 << (i-1))) {
+			if (data & 0x80) {
 				PORTB |= (1 << DBG_DATA);
 			} else {
 				PORTB &= ~(1 << DBG_DATA);
 			}
+			data <<= 1;
 			PORTB |= (1 << DBG_SHIFT);
-			__builtin_avr_delay_cycles(20);
+			__builtin_avr_delay_cycles(50);
 			PORTB &= ~(1 << DBG_SHIFT);
-			__builtin_avr_delay_cycles(20);
+			__builtin_avr_delay_cycles(50);
 		}
 
 		_delay_ms(10);

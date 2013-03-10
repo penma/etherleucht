@@ -24,8 +24,7 @@
 
 #include "debug.h"
 
-static uint16_t NextPacketPtr;
-
+static uint16_t packet_next, packet_current;
 
 static void enc_spi_select(uint8_t act) {
 	if (act) {
@@ -154,7 +153,7 @@ void enc_init() {
 	/* Bank 0 stuff
 	 * Ethernet buffer addresses
 	 */
-	NextPacketPtr = RXST;
+	packet_next = RXST;
 	enc_reg_write16(ERXSTL, RXST);
 	enc_reg_write16(ERXNDL, RXND);
 	enc_reg_write16(ERXRDPTL, RXND);
@@ -217,10 +216,10 @@ void enc28j60PacketSend(uint16_t len, const uint8_t *const packet) {
 
 void enc_acknowledge_packet() {
 	/* errata B7 #12: ERXRDPT must contain an odd value */
-	if (NextPacketPtr == RXST) {
+	if (packet_next == RXST) {
 		enc_reg_write16(ERXRDPTL, RXND);
 	} else {
-		enc_reg_write16(ERXRDPTL, NextPacketPtr - 1);
+		enc_reg_write16(ERXRDPTL, packet_next - 1);
 	}
 
 	enc_op_write(ENC28J60_BIT_FIELD_SET, ECON2, ECON2_PKTDEC);
@@ -250,11 +249,12 @@ void enc_buf_read_bulk(uint8_t dst[], uint16_t len) {
 	}
 }
 
-uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t *packet) {
-	uint16_t rxstat;
-	uint16_t len;
 
-	// check if a packet has been received and buffered
+/* check if there is a packet waiting to be processed.
+ * if there is, also read the status headers, update next/current packet
+ * pointers.
+ */
+uint8_t enc_rx_has_packet() {
 	if (!(enc_reg_read(EIR) & EIR_PKTIF)) {
 		if (enc_reg_read(EPKTCNT) == 0) {
 			debug_str("!R\n");
@@ -267,24 +267,23 @@ uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t *packet) {
 		debug_str("P");
 		debug_dec16(cn);
 		debug_str(" R");
-		debug_hex16(NextPacketPtr);
+		debug_hex16(packet_next);
 	}
 
-	// Set the read pointer to the start of the received packet
-	enc_reg_write16(ERDPTL, NextPacketPtr);
+	/* set read pointer to start of new packet */
+	enc_reg_write16(ERDPTL, packet_next);
+	packet_current = packet_next;
 
+	/* read headers, update pointers */
 	enc_buf_read_start();
-
-	// read the next packet pointer
-	NextPacketPtr = enc_buf_read_intle();
+	packet_next = enc_buf_read_intle();
 
 	if (cn <= 10) {
 		debug_str("\n>");
-		debug_hex16(NextPacketPtr);
+		debug_hex16(packet_next);
 	}
 
-	// read the packet length
-	len = enc_buf_read_intle();
+	uint16_t len = enc_buf_read_intle();
 
 	if (cn <= 10) {
 		debug_str("+");
@@ -295,10 +294,30 @@ uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t *packet) {
 	// the receive buffer
 	len -= 4;
 
-	// read the receive status
-	rxstat = enc_buf_read_intle();
+	/* receive status */
+	uint16_t rxstat = enc_buf_read_intle();
 
 	enc_buf_read_stop();
+
+	return len; /* do not depend on this */
+}
+
+/* seek to receive buffer location
+ * relative to current packet's payload
+ */
+void enc_buf_read_seek(uint16_t pos) {
+	uint16_t target = packet_current + 6 + pos;
+	if (target > RXND) {
+		target = RXST + target - RXND - 1;
+	}
+	enc_reg_write16(ERDPTL, target);
+}
+
+uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t *packet) {
+	uint16_t len = enc_rx_has_packet();
+	if (!len) {
+		return 0;
+	}
 
 	// limit retrieve length
 	// len = MIN(len, maxlen);
@@ -308,6 +327,7 @@ uint16_t enc28j60PacketReceive(uint16_t maxlen, uint8_t *packet) {
 		return(0);
 	}
 	// copy the packet without CRC from the receive buffer
+	enc_buf_read_seek(0);
 	enc_buf_read_start();
 	enc_buf_read_bulk(packet, len);
 	enc_buf_read_stop();

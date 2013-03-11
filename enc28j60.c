@@ -265,7 +265,8 @@ void enc_rx_seek(uint16_t pos) {
  * relative to packet payload
  */
 void enc_tx_seek(uint16_t pos) {
-	enc_reg_write16(EWRPTL, TXSTART_INIT + 14 + 1);
+	/* skip 1 control byte */
+	enc_reg_write16(EWRPTL, TXSTART_INIT + pos + 1);
 }
 
 void enc_tx_start() {
@@ -279,6 +280,11 @@ void enc_tx_stop() {
 
 void enc_tx_write_byte(uint8_t c) {
 	spi_write(c);
+}
+
+void enc_tx_write_intbe(uint16_t c) {
+	spi_write(c >> 8);
+	spi_write(c & 0xff);
 }
 
 void enc_tx_write_buf(uint8_t src[], uint16_t len) {
@@ -319,8 +325,7 @@ void enc_tx_do(uint16_t len, uint16_t ethertype, uint8_t is_reply) {
 	enc_tx_write_buf(mac, 6);
 
 	/* ethertype */
-	enc_tx_write_byte(ethertype >> 8);
-	enc_tx_write_byte(ethertype & 0xff);
+	enc_tx_write_intbe(ethertype);
 
 	enc_tx_stop();
 
@@ -330,4 +335,29 @@ void enc_tx_do(uint16_t len, uint16_t ethertype, uint8_t is_reply) {
 	/* TODO wait for completion before returning
 	 * we only really support one packet at a time anyway
 	 */
+}
+
+/* compute a checksum over some range in the buffer */
+static uint16_t enc_checksum(uint16_t start, uint16_t len) {
+	uint16_t end = start + len - 1;
+	if ((start <= RXND) && (end > RXND)) {
+		end = RXST + end - RXND - 1;
+	}
+
+	enc_reg_write16(EDMASTL, start);
+	enc_reg_write16(EDMANDL, end);
+
+	enc_op_write(ENC28J60_BIT_FIELD_SET, ECON1, ECON1_CSUMEN | ECON1_DMAST);
+	while (!(enc_reg_read(EIR) & EIR_DMAIF)) { }
+
+	return enc_reg_read16(EDMACSL);
+}
+
+void enc_tx_checksum_ipv4() {
+	uint16_t sum = enc_checksum(TXSTART_INIT + 1 + 14, 20);
+
+	enc_tx_seek(14 + 10);
+	enc_tx_start();
+	enc_tx_write_intbe(sum);
+	enc_tx_stop();
 }

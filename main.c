@@ -23,12 +23,14 @@ ISR(INT1_vect) {
 
 			enc_rx_acknowledge();
 
+			/*
 			for (int y = 0; y < len / 6; y++) {
 				for (int x = 0; x < 6; x++) {
 					debug_hex8(wat[6*y + x]);
 				}
 				debug_str("\n");
 			}
+			*/
 
 			if (wat[42] == '0') {
 				debug_str("*** YAY ***\n");
@@ -58,8 +60,8 @@ void main() {
 		wat[ 6] = wat[7] = 0;
 		wat[ 8] = 0xff;
 		wat[ 9] = 0x11;
-		wat[10] = 0x17;
-		wat[11] = 0x31;
+		wat[10] = 0x00;
+		wat[11] = 0x00;
 
 		wat[12] = wat[16] = 172;
 		wat[13] = wat[17] = 22;
@@ -77,12 +79,13 @@ void main() {
 
 		debug_str("send pkg\n");
 		ATOMIC_BLOCK(ATOMIC_FORCEON) {
-			enc_tx_seek(0);
+			enc_tx_seek(14);
 			enc_tx_start();
 
 			enc_tx_write_buf(wat, 20 + 8 + 4);
 
 			enc_tx_stop();
+			enc_tx_checksum_ipv4();
 			enc_tx_do(20 + 8 + 4, 0x0800, 0);
 		}
 		_delay_ms(1000);

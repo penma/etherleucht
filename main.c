@@ -8,7 +8,18 @@
 #include "enc28j60.h"
 #include "debug.h"
 
+volatile uint8_t enc_interrupt = 0;
+
 ISR(INT1_vect) {
+	/* record that we shall handle a packet
+	 * then, disable this interrupt to prevent the enc28j60 from
+	 * terrorpoking us
+	 */
+	enc_interrupt = 1;
+	GIMSK &= ~(1 << INT1);
+}
+
+void handle_recv() {
 	uint8_t wat[64];
 
 	uint16_t len = enc_rx_has_packet();
@@ -49,6 +60,12 @@ void main() {
 	sei();
 
 	while (1) {
+		if (enc_interrupt) {
+			handle_recv();
+			enc_interrupt = 0;
+			GIMSK |= (1 << INT1);
+		}
+
 		uint8_t wat[32];
 
 		wat[ 0] = 0x45;
@@ -80,17 +97,16 @@ void main() {
 
 
 		debug_str("send pkg\n");
-		ATOMIC_BLOCK(ATOMIC_FORCEON) {
-			enc_tx_seek(14);
-			enc_tx_start();
 
-			enc_tx_write_buf(wat, 20 + 8 + 4);
+		enc_tx_seek(14);
+		enc_tx_start();
 
-			enc_tx_stop();
-			enc_tx_header_udp(4);
-			enc_tx_header_ipv4();
-			enc_tx_do(20 + 8 + 4, 0x0800, 0);
-		}
+		enc_tx_write_buf(wat, 20 + 8 + 4);
+
+		enc_tx_stop();
+		enc_tx_header_udp(4);
+		enc_tx_header_ipv4();
+		enc_tx_do(20 + 8 + 4, 0x0800, 0);
 		_delay_ms(1000);
 
 	}

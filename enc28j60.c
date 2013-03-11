@@ -224,17 +224,8 @@ void enc_rx_read_buf(uint8_t dst[], uint16_t len) {
 uint16_t enc_rx_has_packet() {
 	if (!(enc_reg_read(EIR) & EIR_PKTIF)) {
 		if (enc_reg_read(EPKTCNT) == 0) {
-			debug_str("!R\n");
 			return 0;
 		}
-	}
-
-	uint16_t cn = enc_reg_read(EPKTCNT);
-	if (cn <= 10) {
-		debug_str("P");
-		debug_dec16(cn);
-		debug_str(" R");
-		debug_hex16(packet_next);
 	}
 
 	/* set read pointer to start of new packet */
@@ -245,18 +236,8 @@ uint16_t enc_rx_has_packet() {
 	enc_rx_start();
 	packet_next = enc_rx_read_intle();
 
-	if (cn <= 10) {
-		debug_str("\n>");
-		debug_hex16(packet_next);
-	}
-
 	uint16_t len = enc_rx_read_intle();
 
-	if (cn <= 10) {
-		debug_str("+");
-		debug_hex16(len);
-		debug_str("\n");
-	}
 	// remove CRC from len (we don't read the CRC from
 	// the receive buffer
 	len -= 4;

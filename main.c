@@ -69,7 +69,9 @@ void main() {
 		wat[15] = 224;
 		wat[19] = 15;
 
-		wat[20] = wat[21] = wat[22] = wat[23] = wat[24] = wat[25] = wat[26] = wat[27] = 0;
+		wat[20] = 0; wat[21] = 23;
+		wat[22] = 0; wat[23] = 42;
+		wat[24] = wat[25] = wat[26] = wat[27] = 0xaa;
 
 		wat[28] = 'w';
 		wat[29] = 'a';
@@ -85,7 +87,8 @@ void main() {
 			enc_tx_write_buf(wat, 20 + 8 + 4);
 
 			enc_tx_stop();
-			enc_tx_checksum_ipv4();
+			enc_tx_header_udp(4);
+			enc_tx_header_ipv4();
 			enc_tx_do(20 + 8 + 4, 0x0800, 0);
 		}
 		_delay_ms(1000);

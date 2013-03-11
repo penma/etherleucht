@@ -19,10 +19,6 @@ void enc_init() {
 	 */
 	while (!(enc_reg_read(ESTAT) & ESTAT_CLKRDY)) { }
 
-	debug_fstr("revid ");
-	debug_hex8(enc_reg_read(EREVID));
-	debug_fstr("\n");
-
 	/* Bank 0 stuff
 	 * Ethernet buffer addresses
 	 */
@@ -30,7 +26,6 @@ void enc_init() {
 	enc_reg_write16(ERXSTL, RXST);
 	enc_reg_write16(ERXNDL, RXND);
 	enc_reg_write16(ERXRDPTL, RXND);
-	enc_reg_write16(ETXSTL, TXSTART_INIT);
 
 	/* Bank 2 stuff
 	 * setup MAC, automatic padding, auto CRC
@@ -66,8 +61,6 @@ void enc_init() {
 	 * long stretched
 	 */
 	enc_phy_write(PHLCON, 0xc1a);
-
-	debug_fstr("init done\n");
 }
 
 void enc_rx_acknowledge() {
@@ -196,6 +189,7 @@ void enc_tx_do(uint16_t len, uint16_t ethertype, uint8_t is_reply) {
 	/* end pointer points to the last byte
 	 * (payload + ethernet header (14 byte) + 1 enc28j60 control byte - 1)
 	 */
+	enc_reg_write16(ETXSTL, TXSTART_INIT);
 	enc_reg_write16(ETXNDL, TXSTART_INIT + len + 14);
 
 	enc_reg_write16(EWRPTL, TXSTART_INIT);
@@ -223,25 +217,25 @@ void enc_tx_do(uint16_t len, uint16_t ethertype, uint8_t is_reply) {
 
 	enc_tx_stop();
 
-	enc_reg_write16(ERDPTL, TXSTART_INIT + 1);
-	enc_rx_start();
-	for (int y = 0; y < len / 6; y++) {
-		for (int x = 0; x < 6; x++) {
-			debug_hex8(enc_rx_read_byte());
-			if (x == 2) {
-				debug_fstr(" ");
-			}
-		}
-		debug_fstr("\n");
-	}
-	enc_rx_stop();
-
 	/* finally, transmit */
+	enc_op_write(ENC28J60_BIT_FIELD_CLR, ESTAT, ESTAT_TXABRT);
 	enc_op_write(ENC28J60_BIT_FIELD_SET, ECON1, ECON1_TXRTS);
 
-	/* TODO wait for completion before returning
-	 * we only really support one packet at a time anyway
-	 */
+	/* wait for completion */
+	uint8_t try = 0xff;
+	while (enc_reg_read(ECON1) & ECON1_TXRTS) {
+		try--;
+		if (try == 0) {
+			debug_fstr("TX timeout\n");
+			return;
+		}
+	}
+
+	uint8_t stat = enc_reg_read(ESTAT);
+	if (stat & ESTAT_TXABRT) {
+		debug_fstr("TX error\n");
+		return;
+	}
 }
 
 /* compute a checksum over some range in the buffer */
@@ -255,7 +249,14 @@ static uint16_t enc_checksum(uint16_t start, uint16_t len) {
 	enc_reg_write16(EDMANDL, end);
 
 	enc_op_write(ENC28J60_BIT_FIELD_SET, ECON1, ECON1_CSUMEN | ECON1_DMAST);
-	while (!(enc_reg_read(EIR) & EIR_DMAIF)) { }
+	uint16_t try = 0xffff;
+	while (!(enc_reg_read(EIR) & EIR_DMAIF)) {
+		try--;
+		if (try == 0) {
+			debug_fstr("Chksum timeout\n");
+			return 0;
+		}
+	}
 
 	return enc_reg_read16(EDMACSL);
 }

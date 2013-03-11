@@ -11,7 +11,7 @@ d avr-gcc \
 	-mmcu=attiny4313 -DF_CPU=8000000UL \
 	-gdwarf-2 -std=gnu99 -Os -fwhole-program -flto -mstrict-X -fmerge-all-constants \
 	-funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums \
-	-Wall -Wundef -Wno-main -Wno-comment \
+	-Wall -Wundef -Wno-main -Wno-comment -Werror=implicit-function-declaration \
 	-fstack-usage -Wstack-usage=4 \
 	-I. main.c enc28j60.c networking.c spi.c debug.c \
 	-o main.elf

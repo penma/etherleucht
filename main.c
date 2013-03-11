@@ -1,8 +1,10 @@
 
 #include <avr/interrupt.h>
+#include <avr/sleep.h>
 #include <util/delay.h>
 #include <util/atomic.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "spi.h"
 #include "networking.h"
@@ -10,7 +12,7 @@
 
 volatile uint8_t enc_interrupt = 0;
 
-static uint8_t our_ip[4] = { 172, 22, 26, 224 };
+static uint8_t our_ip[4] = { 192, 168, 0, 250 };
 
 ISR(INT1_vect) {
 	/* record that we shall handle a packet
@@ -158,48 +160,7 @@ void main() {
 			GIMSK |= (1 << INT1);
 		}
 
-		uint8_t wat[32];
-
-		wat[ 0] = 0x45;
-		wat[ 1] = 0x00;
-		wat[ 2] = 0x00;
-		wat[ 3] = 0x20;
-		wat[ 4] = 0x23;
-		wat[ 5] = 0x42;
-		wat[ 6] = wat[7] = 0;
-		wat[ 8] = 0xff;
-		wat[ 9] = 0x11;
-		wat[10] = 0x00;
-		wat[11] = 0x00;
-
-		wat[12] = wat[16] = 172;
-		wat[13] = wat[17] = 22;
-		wat[14] = wat[18] = 26;
-		wat[15] = 224;
-		wat[19] = 15;
-
-		wat[20] = 0; wat[21] = 23;
-		wat[22] = 0; wat[23] = 42;
-		wat[24] = wat[25] = wat[26] = wat[27] = 0xaa;
-
-		wat[28] = ' ';
-		wat[29] = '\\';
-		wat[30] = 'o';
-		wat[31] = '/';
-
-		debug_fstr("send pkg\n");
-
-		enc_tx_seek(14);
-		enc_tx_start();
-
-		enc_tx_write_buf(wat, 20 + 8 + 4);
-
-		enc_tx_stop();
-		enc_tx_header_udp(4);
-		enc_tx_header_ipv4();
-		enc_tx_do(20 + 8 + 4, 0x0800, 0);
-		_delay_ms(1000);
-
+		sleep_mode();
 	}
 }
 

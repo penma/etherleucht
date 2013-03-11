@@ -11,6 +11,8 @@ void enc_rx_acknowledge();
 void enc_rx_start();
 void enc_rx_stop();
 void enc_rx_seek(uint16_t pos);
+uint16_t enc_rx_read_intle();
+uint16_t enc_rx_read_intbe();
 void enc_rx_read_buf(uint8_t dst[], uint16_t len);
 
 void enc_tx_start();

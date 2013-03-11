@@ -6,7 +6,7 @@
 #include "debug.h"
 
 static uint16_t packet_next, packet_current;
-static uint8_t mac[6] = { 0x42, 0xcc, 0xcd, 0x00, 0x13, 0x37 };
+uint8_t mac[6] = { 0x42, 0xcc, 0xcd, 0x00, 0x13, 0x37 };
 
 void enc_init() {
 	enc_spi_init();
@@ -92,6 +92,11 @@ uint16_t enc_rx_read_intle() {
 	return low | (spi_read() << 8);
 }
 
+uint16_t enc_rx_read_intbe() {
+	uint8_t high = spi_read();
+	return (high << 8) | spi_read();
+}
+
 void enc_rx_read_buf(uint8_t dst[], uint16_t len) {
 	for (uint16_t i = 0; i < len; i++) {
 		dst[i] = spi_read();
@@ -122,9 +127,6 @@ uint16_t enc_rx_accept_packet() {
 	// remove CRC from len (we don't read the CRC from
 	// the receive buffer
 	len -= 4;
-
-	/* receive status (ignored) */
-	enc_rx_read_intle();
 
 	enc_rx_stop();
 

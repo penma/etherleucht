@@ -69,7 +69,7 @@ void enc_init() {
 }
 
 void enc_rx_acknowledge() {
-	/* errata B7 #12: ERXRDPT must contain an odd value */
+	/* errata B7 #14: ERXRDPT must contain an odd value */
 	if (packet_next == RXST) {
 		enc_reg_write16(ERXRDPTL, RXND);
 	} else {
@@ -185,6 +185,12 @@ void enc_tx_write_buf(uint8_t src[], uint16_t len) {
  * completes layer 2 header, then sends
  */
 void enc_tx_do(uint16_t len, uint16_t ethertype, uint8_t is_reply) {
+	/* errata B7 #12: reset TX logic because it may be in an inconsistent
+	 * state
+	 */
+	enc_op_write(ENC28J60_BIT_FIELD_SET, ECON1, ECON1_TXRST);
+	enc_op_write(ENC28J60_BIT_FIELD_CLR, ECON1, ECON1_TXRST);
+
 	/* end pointer points to the last byte
 	 * (payload + ethernet header (14 byte) + 1 enc28j60 control byte - 1)
 	 */

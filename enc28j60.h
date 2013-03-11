@@ -221,29 +221,16 @@
 #define	MAX_FRAMELEN	400	// maximum ethernet frame length
 
 
-#ifndef ENC28J60_MAC0
-#define ENC28J60_MAC0 0x00
-#define ENC28J60_MAC1 0x03
-#define ENC28J60_MAC2 0x6f
-#define ENC28J60_MAC3 0x55
-#define ENC28J60_MAC4 0x1c
-#define ENC28J60_MAC5 0xc2
-#endif
+void enc_spi_select(uint8_t act);
+void enc_spi_init();
+uint8_t enc_op_read(uint8_t op, uint8_t address);
+void enc_op_write(uint8_t op, uint8_t address, uint8_t data);
+uint8_t enc_reg_read(uint8_t address);
+void enc_reg_write(uint8_t address, uint8_t data);
+void enc_reg_write16(uint8_t baseaddr, uint16_t data);
+uint16_t enc_reg_read16(uint8_t baseaddr);
+uint16_t enc_phy_read(uint8_t address);
+void enc_phy_write(uint8_t address, uint16_t data);
 
-void enc_init();
-
-uint8_t enc_rx_has_packet();
-uint16_t enc_rx_accept_packet();
-void enc_rx_acknowledge();
-void enc_rx_start();
-void enc_rx_stop();
-void enc_rx_seek(uint16_t pos);
-void enc_rx_read_buf(uint8_t dst[], uint16_t len);
-
-void enc_tx_start();
-void enc_tx_stop();
-void enc_tx_seek(uint16_t pos);
-void enc_tx_write_buf(uint8_t src[], uint16_t len);
-void enc_tx_do(uint16_t len, uint16_t ethertype, uint8_t is_reply);
 
 #endif

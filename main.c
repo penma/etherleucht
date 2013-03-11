@@ -5,7 +5,7 @@
 #include <stdlib.h>
 
 #include "spi.h"
-#include "enc28j60.h"
+#include "networking.h"
 #include "debug.h"
 
 volatile uint8_t enc_interrupt = 0;

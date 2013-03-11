@@ -232,7 +232,8 @@
 
 void enc_init();
 
-uint16_t enc_rx_has_packet();
+uint8_t enc_rx_has_packet();
+uint16_t enc_rx_accept_packet();
 void enc_rx_acknowledge();
 void enc_rx_start();
 void enc_rx_stop();

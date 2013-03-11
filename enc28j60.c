@@ -216,18 +216,16 @@ void enc_rx_read_buf(uint8_t dst[], uint16_t len) {
 }
 
 
-/* check if there is a packet waiting to be processed.
- * if there is, also read the status headers, update next/current packet
- * pointers.
- * will return payload length, or 0
- */
-uint16_t enc_rx_has_packet() {
-	if (!(enc_reg_read(EIR) & EIR_PKTIF)) {
-		if (enc_reg_read(EPKTCNT) == 0) {
-			return 0;
-		}
-	}
+/* check if there is a packet waiting to be processed. */
+uint8_t enc_rx_has_packet() {
+	return enc_reg_read(EPKTCNT) != 0;
+}
 
+/* accept a pending packet.
+ * also read the status headers, update next/current packet pointers.
+ * will return payload length.
+ */
+uint16_t enc_rx_accept_packet() {
 	/* set read pointer to start of new packet */
 	enc_reg_write16(ERDPTL, packet_next);
 	packet_current = packet_next;

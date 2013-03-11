@@ -22,30 +22,33 @@ ISR(INT1_vect) {
 void handle_recv() {
 	uint8_t wat[64];
 
-	uint16_t len = enc_rx_has_packet();
-	if (len) {
-		if (len > 64) {
-			enc_rx_acknowledge();
-		} else {
-			enc_rx_seek(0);
-			enc_rx_start();
-			enc_rx_read_buf(wat, len);
-			enc_rx_stop();
+	uint16_t len = enc_rx_accept_packet();
+	if (!len) {
+		debug_str("WTF?\n");
+		return;
+	}
 
-			enc_rx_acknowledge();
+	if (len > 64) {
+		enc_rx_acknowledge();
+	} else {
+		enc_rx_seek(0);
+		enc_rx_start();
+		enc_rx_read_buf(wat, len);
+		enc_rx_stop();
 
-			/*
-			for (int y = 0; y < len / 6; y++) {
-				for (int x = 0; x < 6; x++) {
-					debug_hex8(wat[6*y + x]);
-				}
-				debug_str("\n");
+		enc_rx_acknowledge();
+
+		/*
+		for (int y = 0; y < len / 6; y++) {
+			for (int x = 0; x < 6; x++) {
+				debug_hex8(wat[6*y + x]);
 			}
-			*/
+			debug_str("\n");
+		}
+		*/
 
-			if (wat[42] == '0') {
-				debug_str("*** YAY ***\n");
-			}
+		if (wat[42] == '0') {
+			debug_str("*** YAY ***\n");
 		}
 	}
 }
@@ -61,7 +64,9 @@ void main() {
 
 	while (1) {
 		if (enc_interrupt) {
-			handle_recv();
+			while (enc_rx_has_packet()) {
+				handle_recv();
+			}
 			enc_interrupt = 0;
 			GIMSK |= (1 << INT1);
 		}
@@ -90,11 +95,10 @@ void main() {
 		wat[22] = 0; wat[23] = 42;
 		wat[24] = wat[25] = wat[26] = wat[27] = 0xaa;
 
-		wat[28] = 'w';
-		wat[29] = 'a';
-		wat[30] = 't';
-		wat[31] = '!';
-
+		wat[28] = ' ';
+		wat[29] = '\\';
+		wat[30] = 'o';
+		wat[31] = '/';
 
 		debug_str("send pkg\n");
 

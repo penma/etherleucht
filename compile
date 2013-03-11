@@ -9,7 +9,7 @@ d() { f $*; "$@"; }
 
 d avr-gcc \
 	-mmcu=attiny4313 -DF_CPU=8000000UL \
-	-gdwarf-2 -std=gnu99 -Os -fwhole-program -flto -mstrict-X \
+	-gdwarf-2 -std=gnu99 -Os -fwhole-program -flto -mstrict-X -fmerge-all-constants \
 	-funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums \
 	-Wall -Wundef -Wno-main -Wno-comment \
 	-fstack-usage -Wstack-usage=4 \

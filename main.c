@@ -24,7 +24,7 @@ void handle_recv() {
 
 	uint16_t len = enc_rx_accept_packet();
 	if (!len) {
-		debug_str("WTF?\n");
+		debug_fstr("WTF?\n");
 		return;
 	}
 
@@ -48,7 +48,7 @@ void handle_recv() {
 		*/
 
 		if (wat[42] == '0') {
-			debug_str("*** YAY ***\n");
+			debug_fstr("*** YAY ***\n");
 		}
 	}
 }
@@ -100,7 +100,7 @@ void main() {
 		wat[30] = 'o';
 		wat[31] = '/';
 
-		debug_str("send pkg\n");
+		debug_fstr("send pkg\n");
 
 		enc_tx_seek(14);
 		enc_tx_start();

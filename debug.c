@@ -13,7 +13,7 @@ void debug_init() {
 	DDRB |= (1 << DBG_DATA) | (1 << DBG_SHIFT) | (1 << DBG_SYNC);
 	PORTB &= ~( (1 << DBG_DATA) | (1 << DBG_SHIFT) | (1 << DBG_SYNC) );
 
-	debug_str("* O HAI *\n");
+	debug_fstr("* O HAI *\n");
 }
 
 void debug_char(uint8_t data) {
@@ -40,7 +40,14 @@ void debug_char(uint8_t data) {
 	}
 }
 
-void debug_str(char *wat) {
+void debug_str(const char * wat) {
+	while (*wat != 0) {
+		debug_char(*wat);
+		wat++;
+	}
+}
+
+void _debug_fstr(const __flash char *wat) {
 	while (*wat != 0) {
 		debug_char(*wat);
 		wat++;

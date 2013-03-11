@@ -19,9 +19,9 @@ void enc_init() {
 	 */
 	while (!(enc_reg_read(ESTAT) & ESTAT_CLKRDY)) { }
 
-	debug_str("revid ");
+	debug_fstr("revid ");
 	debug_hex8(enc_reg_read(EREVID));
-	debug_str("\n");
+	debug_fstr("\n");
 
 	/* Bank 0 stuff
 	 * Ethernet buffer addresses
@@ -66,6 +66,8 @@ void enc_init() {
 	 * long stretched
 	 */
 	enc_phy_write(PHLCON, 0xc1a);
+
+	debug_fstr("init done\n");
 }
 
 void enc_rx_acknowledge() {
@@ -202,8 +204,8 @@ void enc_tx_do(uint16_t len, uint16_t ethertype, uint8_t is_reply) {
 
 	/* destination address */
 	if (is_reply) {
-		debug_str("! no reply addr\n");
-		debug_str("recorded yet\n");
+		debug_fstr("! no reply addr\n");
+		debug_fstr("recorded yet\n");
 		for (int i = 0; i < 6; i++) {
 			enc_tx_write_byte(0xff);
 		}
@@ -227,10 +229,10 @@ void enc_tx_do(uint16_t len, uint16_t ethertype, uint8_t is_reply) {
 		for (int x = 0; x < 6; x++) {
 			debug_hex8(enc_rx_read_byte());
 			if (x == 2) {
-				debug_str(" ");
+				debug_fstr(" ");
 			}
 		}
-		debug_str("\n");
+		debug_fstr("\n");
 	}
 	enc_rx_stop();
 

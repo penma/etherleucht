@@ -23,6 +23,8 @@ static void _assert_spi_active(uint8_t act, uint16_t ln) {
 }
 #define assert_spi_active(act) _assert_spi_active(act, __LINE__)
 
+static uint8_t pk_accepted = 0;
+
 void enc_init() {
 	enc_spi_init();
 
@@ -80,6 +82,11 @@ void enc_init() {
 
 void enc_rx_acknowledge() {
 	assert_spi_active(0);
+	if (!pk_accepted) {
+		debug_fstr("no packet to ack!\n");
+		while (1) {}
+	}
+	pk_accepted = 0;
 	/* errata B7 #14: ERXRDPT must contain an odd value */
 	if (packet_next == RXST) {
 		enc_reg_write16(ERXRDPTL, RXND);
@@ -138,6 +145,11 @@ uint8_t enc_rx_has_packet() {
  */
 uint16_t enc_rx_accept_packet() {
 	assert_spi_active(0);
+	if (pk_accepted) {
+		debug_fstr("tried to accept\npacket twice!\n");
+		while (1) {}
+	}
+	pk_accepted = 1;
 	/* set read pointer to start of new packet */
 	enc_reg_write16(ERDPTL, packet_next);
 	packet_current = packet_next;

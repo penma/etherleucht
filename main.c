@@ -220,6 +220,7 @@ void handle_recv() {
 		debug_fstr("\n");
 
 		enc_rx_stop();
+		enc_rx_acknowledge();
 	}
 }
 

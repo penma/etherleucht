@@ -165,6 +165,22 @@ void enc_tx_prepare_reply() {
 	enc_tx_stop();
 }
 
+static void _assert_spi_active(uint8_t act, uint16_t ln) {
+	if ( ( (PORTA & (1 << PA1)) ? 1 : 0) ^ !act ) {
+		debug_fstr("assert l");
+		debug_dec16(ln);
+		debug_fstr("\nfailed (should\nbe ");
+		if (act) {
+			debug_fstr("0)\n");
+		} else {
+			debug_fstr("1)\n");
+		}
+		while (1) {}
+	}
+}
+
+#define assert_spi_active(act) _assert_spi_active(act, __LINE__)
+
 /* seek to transmit buffer location
  * relative to packet payload
  */
@@ -174,29 +190,33 @@ void enc_tx_seek(uint16_t pos) {
 }
 
 void enc_tx_start() {
+	assert_spi_active(0);
 	enc_spi_select(1);
 	spi_write(ENC28J60_WRITE_BUF_MEM);
 }
 
 void enc_tx_stop() {
+	assert_spi_active(1);
 	enc_spi_select(0);
 }
 
 void enc_tx_write_byte(uint8_t c) {
+	assert_spi_active(1);
 	spi_write(c);
 }
 
 void enc_tx_write_intbe(uint16_t c) {
+	assert_spi_active(1);
 	spi_write(c >> 8);
 	spi_write(c & 0xff);
 }
 
 void enc_tx_write_buf(uint8_t src[], uint16_t len) {
+	assert_spi_active(1);
 	for (uint16_t i = 0; i < len; i++) {
 		spi_write(src[i]);
 	}
 }
-
 
 /* transmit a packet that has already been written to the transmit buffer
  * expects layer 3+ payload length and an ethertype
@@ -222,6 +242,7 @@ void enc_tx_do(uint16_t len, uint16_t ethertype) {
 
 	/* source address - that's us! */
 	enc_tx_seek(6);
+	enc_tx_start();
 	enc_tx_write_buf(mac, 6);
 
 	/* ethertype */

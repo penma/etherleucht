@@ -144,6 +144,27 @@ void enc_rx_seek(uint16_t pos) {
 	enc_reg_write16(ERDPTL, target);
 }
 
+/* copy sender MAC of received packet to destination MAC of transmit packet,
+ * i.e., prepare a reply packet
+ */
+void enc_tx_prepare_reply() {
+	uint8_t sender[6];
+
+	enc_rx_seek(6);
+	enc_rx_start();
+	for (int i = 0; i < 6; i++) {
+		sender[i] = enc_rx_read_byte();
+	}
+	enc_rx_stop();
+
+	enc_tx_seek(0);
+	enc_tx_start();
+	for (int i = 0; i < 6; i++) {
+		enc_tx_write_byte(sender[i]);
+	}
+	enc_tx_stop();
+}
+
 /* seek to transmit buffer location
  * relative to packet payload
  */
@@ -179,9 +200,9 @@ void enc_tx_write_buf(uint8_t src[], uint16_t len) {
 
 /* transmit a packet that has already been written to the transmit buffer
  * expects layer 3+ payload length and an ethertype
- * completes layer 2 header, then sends
+ * completes layer 2 header with ethertype and source mac, then sends
  */
-void enc_tx_do(uint16_t len, uint16_t ethertype, uint8_t is_reply) {
+void enc_tx_do(uint16_t len, uint16_t ethertype) {
 	/* errata B7 #12: reset TX logic because it may be in an inconsistent
 	 * state
 	 */
@@ -197,21 +218,10 @@ void enc_tx_do(uint16_t len, uint16_t ethertype, uint8_t is_reply) {
 	enc_reg_write16(EWRPTL, TXSTART_INIT);
 	enc_tx_start();
 	enc_tx_write_byte(0);
-
-	/* destination address */
-	if (is_reply) {
-		debug_fstr("! no reply addr\n");
-		debug_fstr("recorded yet\n");
-		for (int i = 0; i < 6; i++) {
-			enc_tx_write_byte(0xff);
-		}
-	} else {
-		for (int i = 0; i < 6; i++) {
-			enc_tx_write_byte(0xff);
-		}
-	}
+	enc_tx_stop();
 
 	/* source address - that's us! */
+	enc_tx_seek(6);
 	enc_tx_write_buf(mac, 6);
 
 	/* ethertype */

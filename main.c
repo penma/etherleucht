@@ -59,6 +59,7 @@ void handle_arp() {
 	enc_rx_read_buf(target_proto, 4);
 
 	enc_rx_stop();
+	enc_tx_prepare_reply();
 	enc_rx_acknowledge();
 
 	/* is it for us? */
@@ -84,7 +85,7 @@ void handle_arp() {
 	enc_tx_write_buf(sender_proto, 4);
 
 	enc_tx_stop();
-	enc_tx_do(28, 0x0806, 1);
+	enc_tx_do(28, 0x0806);
 
 	return;
 ignore:

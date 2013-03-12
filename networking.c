@@ -8,6 +8,21 @@
 static uint16_t packet_next, packet_current;
 uint8_t mac[6] = { 0x42, 0xcc, 0xcd, 0x00, 0x13, 0x37 };
 
+static void _assert_spi_active(uint8_t act, uint16_t ln) {
+	if ( ( (PORTA & (1 << PA1)) ? 1 : 0) ^ !act ) {
+		debug_fstr("assert l");
+		debug_dec16(ln);
+		debug_fstr("\nfailed (should\nbe ");
+		if (act) {
+			debug_fstr("0)\n");
+		} else {
+			debug_fstr("1)\n");
+		}
+		while (1) {}
+	}
+}
+#define assert_spi_active(act) _assert_spi_active(act, __LINE__)
+
 void enc_init() {
 	enc_spi_init();
 
@@ -64,6 +79,7 @@ void enc_init() {
 }
 
 void enc_rx_acknowledge() {
+	assert_spi_active(0);
 	/* errata B7 #14: ERXRDPT must contain an odd value */
 	if (packet_next == RXST) {
 		enc_reg_write16(ERXRDPTL, RXND);
@@ -75,29 +91,35 @@ void enc_rx_acknowledge() {
 }
 
 void enc_rx_start() {
+	assert_spi_active(0);
 	enc_spi_select(1);
 	spi_write(ENC28J60_READ_BUF_MEM);
 }
 
 void enc_rx_stop() {
+	assert_spi_active(1);
 	enc_spi_select(0);
 }
 
 uint8_t enc_rx_read_byte() {
+	assert_spi_active(1);
 	return spi_read();
 }
 
 uint16_t enc_rx_read_intle() {
+	assert_spi_active(1);
 	uint8_t low = spi_read();
 	return low | (spi_read() << 8);
 }
 
 uint16_t enc_rx_read_intbe() {
+	assert_spi_active(1);
 	uint8_t high = spi_read();
 	return (high << 8) | spi_read();
 }
 
 void enc_rx_read_buf(uint8_t dst[], uint16_t len) {
+	assert_spi_active(1);
 	for (uint16_t i = 0; i < len; i++) {
 		dst[i] = spi_read();
 	}
@@ -106,6 +128,7 @@ void enc_rx_read_buf(uint8_t dst[], uint16_t len) {
 
 /* check if there is a packet waiting to be processed. */
 uint8_t enc_rx_has_packet() {
+	assert_spi_active(0);
 	return enc_reg_read(EPKTCNT) != 0;
 }
 
@@ -114,6 +137,7 @@ uint8_t enc_rx_has_packet() {
  * will return payload length.
  */
 uint16_t enc_rx_accept_packet() {
+	assert_spi_active(0);
 	/* set read pointer to start of new packet */
 	enc_reg_write16(ERDPTL, packet_next);
 	packet_current = packet_next;
@@ -137,6 +161,7 @@ uint16_t enc_rx_accept_packet() {
  * relative to current packet's payload
  */
 void enc_rx_seek(uint16_t pos) {
+	assert_spi_active(0);
 	uint16_t target = packet_current + 6 + pos;
 	if (target > RXND) {
 		target = RXST + target - RXND - 1;
@@ -148,6 +173,7 @@ void enc_rx_seek(uint16_t pos) {
  * i.e., prepare a reply packet
  */
 void enc_tx_prepare_reply() {
+	assert_spi_active(0);
 	uint8_t sender[6];
 
 	enc_rx_seek(6);
@@ -165,26 +191,12 @@ void enc_tx_prepare_reply() {
 	enc_tx_stop();
 }
 
-static void _assert_spi_active(uint8_t act, uint16_t ln) {
-	if ( ( (PORTA & (1 << PA1)) ? 1 : 0) ^ !act ) {
-		debug_fstr("assert l");
-		debug_dec16(ln);
-		debug_fstr("\nfailed (should\nbe ");
-		if (act) {
-			debug_fstr("0)\n");
-		} else {
-			debug_fstr("1)\n");
-		}
-		while (1) {}
-	}
-}
-
-#define assert_spi_active(act) _assert_spi_active(act, __LINE__)
 
 /* seek to transmit buffer location
  * relative to packet payload
  */
 void enc_tx_seek(uint16_t pos) {
+	assert_spi_active(0);
 	/* skip 1 control byte */
 	enc_reg_write16(EWRPTL, TXSTART_INIT + pos + 1);
 }

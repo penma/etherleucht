@@ -346,6 +346,34 @@ void enc_tx_header_udp(uint16_t len) {
 	enc_tx_stop();
 }
 
+void enc_tx_checksum_ipv4() {
+	enc_tx_seek(14 + 10);
+	enc_tx_start();
+	enc_tx_write_intbe(0);
+	enc_tx_stop();
+
+	uint16_t sum = enc_checksum(TXSTART_INIT + 1 + 14, 20);
+
+	enc_tx_seek(14 + 10);
+	enc_tx_start();
+	enc_tx_write_intbe(sum);
+	enc_tx_stop();
+}
+
+void enc_tx_checksum_icmp(uint16_t len) {
+	enc_tx_seek(14 + 20 + 2);
+	enc_tx_start();
+	enc_tx_write_intbe(0);
+	enc_tx_stop();
+
+	uint16_t sum = enc_checksum(TXSTART_INIT + 1 + 14 + 20, len);
+
+	enc_tx_seek(14 + 20 + 2);
+	enc_tx_start();
+	enc_tx_write_intbe(sum);
+	enc_tx_stop();
+}
+
 void enc_tx_header_ipv4() {
 	/* TODO complete more headers */
 

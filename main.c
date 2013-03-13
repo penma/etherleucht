@@ -112,10 +112,20 @@ void handle_icmp(uint16_t len) {
 	 */
 	enc_rx_stop();
 
-	debug_fstr("pong?\n");
-
-	enc_tx_seek(20 + 4);
+	enc_tx_seek(14 + 20 + 4);
 	for (int i = 0; i < len; i++) {
+		uint8_t wat;
+		enc_rx_start();
+		wat = enc_rx_read_byte();
+		enc_rx_stop();
+		enc_tx_start();
+		enc_tx_write_byte(wat);
+		enc_tx_stop();
+	}
+
+	enc_rx_seek(14 + 12);
+	enc_tx_seek(14 + 16);
+	for (int i = 0; i < 4; i++) {
 		uint8_t wat;
 		enc_rx_start();
 		wat = enc_rx_read_byte();
@@ -127,6 +137,29 @@ void handle_icmp(uint16_t len) {
 
 	enc_tx_prepare_reply();
 	enc_rx_acknowledge();
+
+	enc_tx_seek(14 + 20);
+	enc_tx_start();
+	enc_tx_write_byte(0);
+	enc_tx_write_byte(0);
+	enc_tx_stop();
+
+	enc_tx_checksum_icmp(len);
+
+	enc_tx_seek(14);
+	enc_tx_start();
+	enc_tx_write_byte(0x45);
+	enc_tx_write_byte(0x00);
+	enc_tx_write_intbe(20 + len);
+	enc_tx_write_intbe(0);
+	enc_tx_write_intbe(0);
+	enc_tx_write_byte(255);
+	enc_tx_write_byte(1);
+	enc_tx_write_intbe(0);
+	enc_tx_write_buf(our_ip, 4);
+
+	enc_tx_stop();
+	enc_tx_checksum_ipv4();
 
 	enc_tx_do(20 + len, 0x0800); /* FIXME dat api */
 

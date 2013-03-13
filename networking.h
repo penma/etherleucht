@@ -26,5 +26,7 @@ void enc_tx_prepare_reply();
 void enc_tx_do(uint16_t len, uint16_t ethertype);
 void enc_tx_header_udp(uint16_t len);
 void enc_tx_header_ipv4();
+void enc_tx_checksum_ipv4();
+void enc_tx_checksum_icmp(uint16_t len);
 
 #endif

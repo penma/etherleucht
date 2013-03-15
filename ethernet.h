@@ -1,0 +1,8 @@
+#ifndef ETHERNET_H
+#define ETHERNET_H
+
+#define ETHERTYPE_IPV4 0x0800
+#define ETHERTYPE_ARP 0x0806
+#define ETH_HEADER_LENGTH 14
+
+#endif

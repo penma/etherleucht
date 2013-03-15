@@ -15,5 +15,7 @@
  */
 #define IPV4_HEADER_LENGTH     20
 
+extern uint8_t our_ipv4[4];
+void ipv4_handle();
 
 #endif

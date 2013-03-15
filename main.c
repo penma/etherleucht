@@ -9,12 +9,10 @@
 #include "spi.h"
 #include "networking.h"
 #include "ipv4.h"
+#include "arp.h"
 #include "debug.h"
 
 volatile uint8_t enc_interrupt = 0;
-
-//static uint8_t our_ip[4] = { 192, 168, 0, 250 };
-static uint8_t our_ip[4] = { 172, 22, 26, 219 };
 
 ISR(INT1_vect) {
 	/* record that we shall handle a packet
@@ -247,11 +245,11 @@ void handle_recv() {
 	uint16_t ethertype = enc_rx_read_intbe();
 
 	if (ethertype == ETHERTYPE_ARP && len >= ETH_HEADER_LENGTH + 28) {
-		handle_arp();
+		arp_handle();
 		return;
 	} else if (ethertype == ETHERTYPE_IPV4 && len >= ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH) {
 		// debug_fstr("IPv4 ");
-		handle_ipv4();
+		ipv4_handle();
 		return;
 	} else {
 		debug_fstr("unknown\nethertype\n");

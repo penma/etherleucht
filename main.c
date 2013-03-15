@@ -8,6 +8,7 @@
 
 #include "spi.h"
 #include "networking.h"
+#include "ipv4.h"
 #include "debug.h"
 
 volatile uint8_t enc_interrupt = 0;
@@ -24,13 +25,17 @@ ISR(INT1_vect) {
 	GIMSK &= ~(1 << INT1);
 }
 
+#define ARPOP_REQUEST 1
+#define ARPOP_REPLY 2
+#define ARPHRD_ETHER 1
+
 void handle_arp() {
-	if (enc_rx_read_intbe() != 1) {
+	if (enc_rx_read_intbe() != ARPHRD_ETHER) {
 		/* not ethernet */
 		goto ignore;
 	}
 
-	if (enc_rx_read_intbe() != 0x0800) {
+	if (enc_rx_read_intbe() != ETHERTYPE_IPV4) {
 		/* not ipv4 */
 		goto ignore;
 	}
@@ -45,7 +50,7 @@ void handle_arp() {
 		goto ignore;
 	}
 
-	if (enc_rx_read_intbe() != 1) {
+	if (enc_rx_read_intbe() != ARPOP_REQUEST) {
 		/* not an arp request */
 		goto ignore;
 	}
@@ -70,14 +75,14 @@ void handle_arp() {
 	}
 
 	/* yes! */
-	enc_tx_seek(14);
+	enc_tx_seek(ETH_HEADER_LENGTH);
 	enc_tx_start();
 
-	enc_tx_write_intbe(1);
-	enc_tx_write_intbe(0x0800);
+	enc_tx_write_intbe(ARPHRD_ETHER);
+	enc_tx_write_intbe(ETHERTYPE_IPV4);
 	enc_tx_write_byte(6);
 	enc_tx_write_byte(4);
-	enc_tx_write_intbe(2);
+	enc_tx_write_intbe(ARPOP_REPLY);
 
 	extern uint8_t mac[6];
 	enc_tx_write_buf(mac, 6);
@@ -86,7 +91,7 @@ void handle_arp() {
 	enc_tx_write_buf(sender_proto, 4);
 
 	enc_tx_stop();
-	enc_tx_do(28, 0x0806);
+	enc_tx_do(28, ETHERTYPE_ARP);
 
 	return;
 ignore:
@@ -95,10 +100,11 @@ ignore:
 	enc_rx_acknowledge();
 }
 
-void handle_icmp(uint16_t len) {
-	debug_fstr("ping\n");
+#define ICMP_ECHOREPLY 0
+#define ICMP_ECHO 8
 
-	if (enc_rx_read_byte() != 8) {
+void handle_icmp(uint16_t len) {
+	if (enc_rx_read_byte() != ICMP_ECHO) {
 		/* not an echo request */
 		goto ignore;
 	}
@@ -112,7 +118,7 @@ void handle_icmp(uint16_t len) {
 	 */
 	enc_rx_stop();
 
-	enc_tx_seek(14 + 20 + 4);
+	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH + 4);
 	for (int i = 0; i < len; i++) {
 		uint8_t wat;
 		enc_rx_start();
@@ -123,8 +129,8 @@ void handle_icmp(uint16_t len) {
 		enc_tx_stop();
 	}
 
-	enc_rx_seek(14 + 12);
-	enc_tx_seek(14 + 16);
+	enc_rx_seek(ETH_HEADER_LENGTH + IPV4_HDR_OFF_SOURCE_IP);
+	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HDR_OFF_DEST_IP);
 	for (int i = 0; i < 4; i++) {
 		uint8_t wat;
 		enc_rx_start();
@@ -138,19 +144,19 @@ void handle_icmp(uint16_t len) {
 	enc_tx_prepare_reply();
 	enc_rx_acknowledge();
 
-	enc_tx_seek(14 + 20);
+	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH);
 	enc_tx_start();
-	enc_tx_write_byte(0);
+	enc_tx_write_byte(ICMP_ECHOREPLY);
 	enc_tx_write_byte(0);
 	enc_tx_stop();
 
 	enc_tx_checksum_icmp(len);
 
-	enc_tx_seek(14);
+	enc_tx_seek(ETH_HEADER_LENGTH);
 	enc_tx_start();
 	enc_tx_write_byte(0x45);
 	enc_tx_write_byte(0x00);
-	enc_tx_write_intbe(20 + len);
+	enc_tx_write_intbe(IPV4_HEADER_LENGTH + len);
 	enc_tx_write_intbe(0);
 	enc_tx_write_intbe(0);
 	enc_tx_write_byte(255);
@@ -161,7 +167,7 @@ void handle_icmp(uint16_t len) {
 	enc_tx_stop();
 	enc_tx_checksum_ipv4();
 
-	enc_tx_do(20 + len, 0x0800); /* FIXME dat api */
+	enc_tx_do(IPV4_HEADER_LENGTH + len, ETHERTYPE_IPV4); /* FIXME dat api */
 
 	return;
 ignore:
@@ -180,9 +186,9 @@ void handle_ipv4() {
 
 	enc_rx_read_byte(); /* DSCP/ECN - ignored */
 
-	uint16_t len = enc_rx_read_intbe() - 20;
-	debug_dec16(len);
-	debug_fstr("b ");
+	uint16_t len = enc_rx_read_intbe() - IPV4_HEADER_LENGTH;
+	// debug_dec16(len);
+	// debug_fstr("b ");
 
 	enc_rx_read_intbe(); /* fragment ID - ignored */
 	uint16_t frag = enc_rx_read_intbe();
@@ -208,9 +214,9 @@ void handle_ipv4() {
 		goto ignore;
 	}
 
-	debug_fstr("for us!\n");
+	// debug_fstr("for us!\n");
 
-	if (proto == 0x01) {
+	if (proto == IPPROTO_ICMP) {
 		handle_icmp(len);
 		return;
 	} else {
@@ -240,11 +246,11 @@ void handle_recv() {
 	enc_rx_start();
 	uint16_t ethertype = enc_rx_read_intbe();
 
-	if (ethertype == 0x0806 && len >= 28 + 14) {
+	if (ethertype == ETHERTYPE_ARP && len >= ETH_HEADER_LENGTH + 28) {
 		handle_arp();
 		return;
-	} else if (ethertype == 0x0800 && len >= 20 + 14) {
-		debug_fstr("IPv4 ");
+	} else if (ethertype == ETHERTYPE_IPV4 && len >= ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH) {
+		// debug_fstr("IPv4 ");
 		handle_ipv4();
 		return;
 	} else {

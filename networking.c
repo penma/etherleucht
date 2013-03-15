@@ -1,6 +1,7 @@
 #include "networking.h"
 #include "enc28j60.h"
 #include "spi.h"
+#include "ipv4.h"
 
 #include <util/delay.h>
 #include "debug.h"
@@ -257,7 +258,7 @@ void enc_tx_do(uint16_t len, uint16_t ethertype) {
 	 * (payload + ethernet header (14 byte) + 1 enc28j60 control byte - 1)
 	 */
 	enc_reg_write16(ETXSTL, TXSTART_INIT);
-	enc_reg_write16(ETXNDL, TXSTART_INIT + len + 14);
+	enc_reg_write16(ETXNDL, TXSTART_INIT + len + ETH_HEADER_LENGTH);
 
 	enc_reg_write16(EWRPTL, TXSTART_INIT);
 	enc_tx_start();
@@ -319,56 +320,55 @@ static uint16_t enc_checksum(uint16_t start, uint16_t len) {
 }
 
 #define IP_TTL 0xff
-#define IP_PROTO_UDP 0x11
 
 void enc_tx_header_udp(uint16_t len) {
 	/* we need to compute the checksum over the pseudo header
 	 * we vandalize parts of the IP header to do that
 	 */
-	enc_tx_seek(14 + 8);
+	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HDR_OFF_TTL);
 	enc_tx_start();
 	enc_tx_write_byte(0);
-	enc_tx_write_byte(IP_PROTO_UDP);
+	enc_tx_write_byte(IPPROTO_UDP);
 	enc_tx_write_intbe(len + 8);
 	enc_tx_stop();
 
-	enc_tx_seek(14 + 20 + 4);
+	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH + 4);
 	enc_tx_start();
 	enc_tx_write_intbe(len + 8);
 	enc_tx_write_intbe(0);
 	enc_tx_stop();
 
-	uint16_t sum = enc_checksum(TXSTART_INIT + 1 + 14 + 8, 20 + len);
+	uint16_t sum = enc_checksum(TXSTART_INIT + 1 + ETH_HEADER_LENGTH + 8, IPV4_HEADER_LENGTH + len);
 
-	enc_tx_seek(14 + 20 + 6);
+	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH + 6);
 	enc_tx_start();
 	enc_tx_write_intbe(sum);
 	enc_tx_stop();
 }
 
 void enc_tx_checksum_ipv4() {
-	enc_tx_seek(14 + 10);
+	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HDR_OFF_CHECKSUM);
 	enc_tx_start();
 	enc_tx_write_intbe(0);
 	enc_tx_stop();
 
-	uint16_t sum = enc_checksum(TXSTART_INIT + 1 + 14, 20);
+	uint16_t sum = enc_checksum(TXSTART_INIT + 1 + ETH_HEADER_LENGTH, IPV4_HEADER_LENGTH);
 
-	enc_tx_seek(14 + 10);
+	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HDR_OFF_CHECKSUM);
 	enc_tx_start();
 	enc_tx_write_intbe(sum);
 	enc_tx_stop();
 }
 
 void enc_tx_checksum_icmp(uint16_t len) {
-	enc_tx_seek(14 + 20 + 2);
+	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH + 2);
 	enc_tx_start();
 	enc_tx_write_intbe(0);
 	enc_tx_stop();
 
-	uint16_t sum = enc_checksum(TXSTART_INIT + 1 + 14 + 20, len);
+	uint16_t sum = enc_checksum(TXSTART_INIT + 1 + ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH, len);
 
-	enc_tx_seek(14 + 20 + 2);
+	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH + 2);
 	enc_tx_start();
 	enc_tx_write_intbe(sum);
 	enc_tx_stop();
@@ -380,16 +380,16 @@ void enc_tx_header_ipv4() {
 	/* our header may have been vandalized by udp checksum computation.
 	 * restore some fields
 	 */
-	enc_tx_seek(14 + 8);
+	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HDR_OFF_TTL);
 	enc_tx_start();
 	enc_tx_write_byte(IP_TTL);
-	enc_tx_write_byte(IP_PROTO_UDP);
+	enc_tx_write_byte(IPPROTO_UDP);
 	enc_tx_write_intbe(0);
 	enc_tx_stop();
 
-	uint16_t sum = enc_checksum(TXSTART_INIT + 1 + 14, 20);
+	uint16_t sum = enc_checksum(TXSTART_INIT + 1 + ETH_HEADER_LENGTH, IPV4_HEADER_LENGTH);
 
-	enc_tx_seek(14 + 10);
+	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HDR_OFF_CHECKSUM);
 	enc_tx_start();
 	enc_tx_write_intbe(sum);
 	enc_tx_stop();

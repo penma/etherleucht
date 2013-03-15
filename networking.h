@@ -3,6 +3,10 @@
 
 #include <stdint.h>
 
+#define ETHERTYPE_IPV4 0x0800
+#define ETHERTYPE_ARP 0x0806
+#define ETH_HEADER_LENGTH 14
+
 void enc_init();
 
 uint8_t enc_rx_has_packet();

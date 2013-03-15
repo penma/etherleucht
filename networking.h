@@ -27,10 +27,13 @@ void enc_tx_write_byte(uint8_t);
 void enc_tx_write_intbe(uint16_t);
 void enc_tx_write_buf(uint8_t src[], uint16_t len);
 void enc_tx_prepare_reply();
-void enc_tx_do(uint16_t len, uint16_t ethertype);
+void enc_tx_do(uint16_t len);
 void enc_tx_header_udp(uint16_t len);
 void enc_tx_header_ipv4();
 void enc_tx_checksum_ipv4();
 void enc_tx_checksum_icmp(uint16_t len);
+
+void _assert_spi_active(uint8_t act, uint16_t ln);
+#define assert_spi_active(act) _assert_spi_active(act, __LINE__)
 
 #endif

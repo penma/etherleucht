@@ -9,6 +9,7 @@
 #define ARPOP_REQUEST 1
 #define ARPOP_REPLY 2
 #define ARPHRD_ETHER 1
+#define ARP_LENGTH 28
 
 void arp_handle() {
 	if (enc_rx_read_intbe() != ARPHRD_ETHER) {
@@ -36,7 +37,7 @@ void arp_handle() {
 		goto ignore;
 	}
 
-	/* read the rest of the packet and ack it */
+	/* read the rest of the packet */
 	uint8_t sender_hw[6], sender_proto[4], target_proto[4];
 	enc_rx_read_buf(sender_hw, 6);
 	enc_rx_read_buf(sender_proto, 4);
@@ -45,25 +46,19 @@ void arp_handle() {
 	}
 	enc_rx_read_buf(target_proto, 4);
 
-	enc_rx_stop();
-	enc_tx_prepare_reply();
-	enc_rx_acknowledge();
-
-	/*
-	for (int i = 0; i < 4; i++) {
-		debug_dec16(target_proto[i]);
-		debug_fstr(".");
-	}
-	debug_fstr("?\n");
-	*/
-
 	/* is it for us? */
 	if (memcmp(target_proto, our_ipv4, 4)) {
 		/* no */
-		return;
+		goto ignore;
 	}
 
 	/* yes! */
+	enc_rx_stop();
+
+	eth_tx_reply();
+	eth_tx_type(ETHERTYPE_ARP);
+	enc_rx_acknowledge();
+
 	enc_tx_seek(ETH_HEADER_LENGTH);
 	enc_tx_start();
 
@@ -73,18 +68,16 @@ void arp_handle() {
 	enc_tx_write_byte(4);
 	enc_tx_write_intbe(ARPOP_REPLY);
 
-	extern uint8_t mac[6];
-	enc_tx_write_buf(mac, 6);
+	enc_tx_write_buf(our_mac, 6);
 	enc_tx_write_buf(our_ipv4, 4);
 	enc_tx_write_buf(sender_hw, 6);
 	enc_tx_write_buf(sender_proto, 4);
-
 	enc_tx_stop();
-	enc_tx_do(28, ETHERTYPE_ARP);
+
+	enc_tx_do(ARP_LENGTH);
 
 	return;
 ignore:
-	// debug_fstr("ARP ignored!\n");
 	enc_rx_stop();
 	enc_rx_acknowledge();
 }

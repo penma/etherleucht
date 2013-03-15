@@ -1,5 +1,6 @@
 #include "networking.h"
 #include "enc28j60.h"
+#include "ethernet.h"
 #include "spi.h"
 #include "ipv4.h"
 
@@ -7,10 +8,11 @@
 #include "debug.h"
 
 static uint16_t packet_next, packet_current;
-uint8_t mac[6] = { 0x42, 0xcc, 0xcd, 0x00, 0x13, 0x37 };
 
-static void _assert_spi_active(uint8_t act, uint16_t ln) {
-	if ( ( (PORTA & (1 << PA1)) ? 1 : 0) ^ !act ) {
+void _assert_spi_active(uint8_t act, uint16_t ln) {
+	int should = act;
+	int is = !(PORTA & (1 << PA1));
+	if ( should != is ) {
 		debug_fstr("assert l");
 		debug_dec16(ln);
 		debug_fstr("\nfailed (should\nbe ");
@@ -22,7 +24,6 @@ static void _assert_spi_active(uint8_t act, uint16_t ln) {
 		while (1) {}
 	}
 }
-#define assert_spi_active(act) _assert_spi_active(act, __LINE__)
 
 static uint8_t pk_accepted = 0;
 
@@ -60,12 +61,12 @@ void enc_init() {
 	/* Bank 3 stuff
 	 * MAC address for Unicast packet filtering
 	 */
-	enc_reg_write(MAADR5, mac[0]);
-	enc_reg_write(MAADR4, mac[1]);
-	enc_reg_write(MAADR3, mac[2]);
-	enc_reg_write(MAADR2, mac[3]);
-	enc_reg_write(MAADR1, mac[4]);
-	enc_reg_write(MAADR0, mac[5]);
+	enc_reg_write(MAADR5, our_mac[0]);
+	enc_reg_write(MAADR4, our_mac[1]);
+	enc_reg_write(MAADR3, our_mac[2]);
+	enc_reg_write(MAADR2, our_mac[3]);
+	enc_reg_write(MAADR1, our_mac[4]);
+	enc_reg_write(MAADR0, our_mac[5]);
 
 	/* no loopback of transmitted frames */
 	enc_phy_write(PHCON2, PHCON2_HDLDIS);
@@ -167,7 +168,56 @@ uint16_t enc_rx_accept_packet() {
 
 	enc_rx_stop();
 
+
+	enc_rx_seek(12);
+	enc_rx_start();
+	uint16_t et = enc_rx_read_intbe();
+	enc_rx_stop();
+
+	if ((et == 0x0800) || (et == 0x0806)) {
+		return len;
+	}
+
+	enc_rx_seek(0);
+
+	debug_hex16(packet_current);
+	debug_fstr("+");
+	debug_hex16(len);
+	debug_fstr(">");
+	debug_hex16(packet_next);
+	debug_fstr("\n");
+
+	enc_rx_start();
+	for (int i = 0; i < len; i++) {
+		debug_hex8(enc_rx_read_byte());
+		if ((i % 6) == 2) {
+			debug_fstr(" ");
+		} else if ((i % 6) == 5) {
+			debug_fstr("\n");
+		}
+		if ((i % 42) == 0) {
+			_delay_ms(1000);
+		}
+
+		if (i > 256) {
+			break;
+		}
+	}
+	enc_rx_stop();
+	debug_fstr("\a");
+	_delay_ms(1000);
+
+	debug_fstr("\n\n");
+
 	return len;
+}
+
+uint16_t enc_address(uint16_t base, uint16_t off) {
+	uint16_t addr = base + off;
+	if ((base <= RXND) && (addr > RXND)) {
+		addr = RXST + addr - RXND - 1;
+	}
+	return addr;
 }
 
 /* seek to receive buffer location
@@ -175,35 +225,8 @@ uint16_t enc_rx_accept_packet() {
  */
 void enc_rx_seek(uint16_t pos) {
 	assert_spi_active(0);
-	uint16_t target = packet_current + 6 + pos;
-	if (target > RXND) {
-		target = RXST + target - RXND - 1;
-	}
-	enc_reg_write16(ERDPTL, target);
+	enc_reg_write16(ERDPTL, enc_address(packet_current, 6 + pos));
 }
-
-/* copy sender MAC of received packet to destination MAC of transmit packet,
- * i.e., prepare a reply packet
- */
-void enc_tx_prepare_reply() {
-	assert_spi_active(0);
-	uint8_t sender[6];
-
-	enc_rx_seek(6);
-	enc_rx_start();
-	for (int i = 0; i < 6; i++) {
-		sender[i] = enc_rx_read_byte();
-	}
-	enc_rx_stop();
-
-	enc_tx_seek(0);
-	enc_tx_start();
-	for (int i = 0; i < 6; i++) {
-		enc_tx_write_byte(sender[i]);
-	}
-	enc_tx_stop();
-}
-
 
 /* seek to transmit buffer location
  * relative to packet payload
@@ -211,7 +234,7 @@ void enc_tx_prepare_reply() {
 void enc_tx_seek(uint16_t pos) {
 	assert_spi_active(0);
 	/* skip 1 control byte */
-	enc_reg_write16(EWRPTL, TXSTART_INIT + pos + 1);
+	enc_reg_write16(EWRPTL, enc_address(TXSTART_INIT + 1, pos));
 }
 
 void enc_tx_start() {
@@ -243,11 +266,8 @@ void enc_tx_write_buf(uint8_t src[], uint16_t len) {
 	}
 }
 
-/* transmit a packet that has already been written to the transmit buffer
- * expects layer 3+ payload length and an ethertype
- * completes layer 2 header with ethertype and source mac, then sends
- */
-void enc_tx_do(uint16_t len, uint16_t ethertype) {
+/* transmit a packet that has already been written to the transmit buffer */
+void enc_tx_do(uint16_t len) {
 	/* errata B7 #12: reset TX logic because it may be in an inconsistent
 	 * state
 	 */
@@ -263,16 +283,6 @@ void enc_tx_do(uint16_t len, uint16_t ethertype) {
 	enc_reg_write16(EWRPTL, TXSTART_INIT);
 	enc_tx_start();
 	enc_tx_write_byte(0);
-	enc_tx_stop();
-
-	/* source address - that's us! */
-	enc_tx_seek(6);
-	enc_tx_start();
-	enc_tx_write_buf(mac, 6);
-
-	/* ethertype */
-	enc_tx_write_intbe(ethertype);
-
 	enc_tx_stop();
 
 	/* finally, transmit */
@@ -298,13 +308,9 @@ void enc_tx_do(uint16_t len, uint16_t ethertype) {
 
 /* compute a checksum over some range in the buffer */
 static uint16_t enc_checksum(uint16_t start, uint16_t len) {
-	uint16_t end = start + len - 1;
-	if ((start <= RXND) && (end > RXND)) {
-		end = RXST + end - RXND - 1;
-	}
 
 	enc_reg_write16(EDMASTL, start);
-	enc_reg_write16(EDMANDL, end);
+	enc_reg_write16(EDMANDL, enc_address(start, len - 1));
 
 	enc_op_write(ENC28J60_BIT_FIELD_SET, ECON1, ECON1_CSUMEN | ECON1_DMAST);
 	uint16_t try = 0xffff;

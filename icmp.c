@@ -1,5 +1,6 @@
 #include "icmp.h"
 #include "networking.h"
+#include "ethernet.h"
 #include "ipv4.h"
 #include "debug.h"
 
@@ -44,7 +45,7 @@ void icmp_handle(uint16_t len) {
 		enc_tx_stop();
 	}
 
-	enc_tx_prepare_reply();
+	eth_tx_reply();
 	enc_rx_acknowledge();
 
 	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH);
@@ -70,7 +71,8 @@ void icmp_handle(uint16_t len) {
 	enc_tx_stop();
 	enc_tx_checksum_ipv4();
 
-	enc_tx_do(IPV4_HEADER_LENGTH + len, ETHERTYPE_IPV4); /* FIXME dat api */
+	eth_tx_type(ETHERTYPE_IPV4);
+	enc_tx_do(IPV4_HEADER_LENGTH + len); /* FIXME dat api */
 
 	return;
 ignore:

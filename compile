@@ -13,7 +13,7 @@ d avr-gcc \
 	-funsigned-char -funsigned-bitfields -fpack-struct -fshort-enums \
 	-Wall -Wundef -Wno-main -Wno-comment -Werror=implicit-function-declaration \
 	-fstack-usage -Wstack-usage=4 \
-	-I. main.c enc28j60.c networking.c spi.c debug.c ipv4.c arp.c icmp.c \
+	-I. main.c enc28j60.c networking.c spi.c debug.c ipv4.c arp.c icmp.c ethernet.c \
 	-o main.elf
 
 f stack usage by function

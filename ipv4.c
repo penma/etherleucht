@@ -8,7 +8,11 @@
 
 uint8_t our_ipv4[4] = { 172, 22, 26, 219 };
 
-void ipv4_handle() {
+void ipv4_handle(uint16_t packet_len) {
+	if (packet_len < IPV4_HEADER_LENGTH) {
+		goto ignore;
+	}
+
 	if (enc_rx_read_byte() != 0x45) {
 		/* not v4 or not 20 byte header
 		 * the latter would be legal, but nobody really does this
@@ -19,6 +23,10 @@ void ipv4_handle() {
 	enc_rx_read_byte(); /* DSCP/ECN - ignored */
 
 	uint16_t len = enc_rx_read_intbe() - IPV4_HEADER_LENGTH;
+	if (len + IPV4_HEADER_LENGTH > packet_len) {
+		/* something is not quite right here */
+		goto ignore;
+	}
 	// debug_dec16(len);
 	// debug_fstr("b ");
 

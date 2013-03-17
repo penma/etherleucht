@@ -11,7 +11,12 @@
 #define ARPHRD_ETHER 1
 #define ARP_LENGTH 28
 
-void arp_handle() {
+void arp_handle(uint16_t packet_len) {
+	if (packet_len < 28) {
+		/* too small for anything we will ever handle */
+		goto ignore;
+	}
+
 	if (enc_rx_read_intbe() != ARPHRD_ETHER) {
 		/* not ethernet */
 		goto ignore;

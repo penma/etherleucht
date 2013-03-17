@@ -1,5 +1,8 @@
 #include "ethernet.h"
 #include "networking.h"
+#include "arp.h"
+#include "ipv4.h"
+#include "debug.h"
 
 uint8_t our_mac[6] = { 0x42, 0xcc, 0xcd, 0x00, 0x13, 0x37 };
 
@@ -36,4 +39,26 @@ void eth_tx_type(uint16_t ethertype) {
 	enc_tx_write_intbe(ethertype);
 
 	enc_tx_stop();
+}
+
+void eth_handle(uint16_t frame_length) {
+	/* check the ethertype */
+	enc_rx_seek(12);
+	enc_rx_start();
+	uint16_t ethertype = enc_rx_read_intbe();
+
+	if (ethertype == ETHERTYPE_ARP) {
+		arp_handle(frame_length - ETH_HEADER_LENGTH);
+		return;
+	} else if (ethertype == ETHERTYPE_IPV4) {
+		ipv4_handle(frame_length - ETH_HEADER_LENGTH);
+		return;
+	} else {
+		debug_fstr("unknown\nethertype\n");
+		debug_hex16(ethertype);
+		debug_fstr("\n");
+
+		enc_rx_stop();
+		enc_rx_acknowledge();
+	}
 }

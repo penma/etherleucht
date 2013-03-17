@@ -168,47 +168,6 @@ uint16_t enc_rx_accept_packet() {
 
 	enc_rx_stop();
 
-
-	enc_rx_seek(12);
-	enc_rx_start();
-	uint16_t et = enc_rx_read_intbe();
-	enc_rx_stop();
-
-	if ((et == 0x0800) || (et == 0x0806)) {
-		return len;
-	}
-
-	enc_rx_seek(0);
-
-	debug_hex16(packet_current);
-	debug_fstr("+");
-	debug_hex16(len);
-	debug_fstr(">");
-	debug_hex16(packet_next);
-	debug_fstr("\n");
-
-	enc_rx_start();
-	for (int i = 0; i < len; i++) {
-		debug_hex8(enc_rx_read_byte());
-		if ((i % 6) == 2) {
-			debug_fstr(" ");
-		} else if ((i % 6) == 5) {
-			debug_fstr("\n");
-		}
-		if ((i % 42) == 0) {
-			_delay_ms(1000);
-		}
-
-		if (i > 256) {
-			break;
-		}
-	}
-	enc_rx_stop();
-	debug_fstr("\a");
-	_delay_ms(1000);
-
-	debug_fstr("\n\n");
-
 	return len;
 }
 

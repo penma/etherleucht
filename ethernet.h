@@ -11,5 +11,6 @@ extern uint8_t our_mac[6];
 
 void eth_tx_reply();
 void eth_tx_type(uint16_t ethertype);
+void eth_handle(uint16_t);
 
 #endif

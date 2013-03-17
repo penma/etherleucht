@@ -7,7 +7,7 @@
 #define ICMP_ECHOREPLY 0
 #define ICMP_ECHO 8
 
-void icmp_handle(uint16_t len) {
+void icmp_handle(uint16_t packet_len) {
 	if (enc_rx_read_byte() != ICMP_ECHO) {
 		/* not an echo request */
 		goto ignore;
@@ -23,7 +23,7 @@ void icmp_handle(uint16_t len) {
 	enc_rx_stop();
 
 	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH + 4);
-	for (int i = 0; i < len; i++) {
+	for (int i = 0; i < packet_len; i++) {
 		uint8_t wat;
 		enc_rx_start();
 		wat = enc_rx_read_byte();
@@ -54,13 +54,13 @@ void icmp_handle(uint16_t len) {
 	enc_tx_write_byte(0);
 	enc_tx_stop();
 
-	enc_tx_checksum_icmp(len);
+	enc_tx_checksum_icmp(packet_len);
 
 	enc_tx_seek(ETH_HEADER_LENGTH);
 	enc_tx_start();
 	enc_tx_write_byte(0x45);
 	enc_tx_write_byte(0x00);
-	enc_tx_write_intbe(IPV4_HEADER_LENGTH + len);
+	enc_tx_write_intbe(IPV4_HEADER_LENGTH + packet_len);
 	enc_tx_write_intbe(0);
 	enc_tx_write_intbe(0);
 	enc_tx_write_byte(255);
@@ -72,7 +72,7 @@ void icmp_handle(uint16_t len) {
 	enc_tx_checksum_ipv4();
 
 	eth_tx_type(ETHERTYPE_IPV4);
-	enc_tx_do(IPV4_HEADER_LENGTH + len); /* FIXME dat api */
+	enc_tx_do(IPV4_HEADER_LENGTH + packet_len); /* FIXME dat api */
 
 	return;
 ignore:

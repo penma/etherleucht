@@ -52,8 +52,11 @@ void main() {
 			GIMSK |= (1 << INT1);
 		}
 
+		/*
 		debug_fstr("good night\n");
 		sleep_mode();
+		*/
+		_delay_ms(100);
 	}
 }
 

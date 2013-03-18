@@ -9,6 +9,8 @@
 #define DBG_SHIFT PB1
 #define DBG_SYNC PB2
 
+#if 1
+
 void debug_init() {
 	DDRB |= (1 << DBG_DATA) | (1 << DBG_SHIFT) | (1 << DBG_SYNC);
 	PORTB &= ~( (1 << DBG_DATA) | (1 << DBG_SHIFT) | (1 << DBG_SYNC) );
@@ -89,3 +91,33 @@ void debug_dec16(uint16_t wat) {
 	n1: debug_nibble(wat);
 }
 
+#else
+
+void debug_init() {
+	DDRB |= (1 << DBG_DATA) | (1 << DBG_SHIFT) | (1 << DBG_SYNC);
+	PORTB &= ~( (1 << DBG_DATA) | (1 << DBG_SHIFT) | (1 << DBG_SYNC) );
+}
+
+void debug_char(uint8_t data) {
+}
+
+void debug_str(const char * wat) {
+}
+
+void _debug_fstr(const __flash char *wat) {
+}
+
+static void debug_nibble(uint8_t wat) {
+}
+
+void debug_hex8(uint8_t wat) {
+}
+
+void debug_hex16(uint16_t wat) {
+}
+
+void debug_dec16(uint16_t wat) {
+}
+
+
+#endif

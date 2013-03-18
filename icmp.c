@@ -13,52 +13,33 @@ void icmp_handle(uint16_t packet_len) {
 		return;
 	}
 
-	enc_rx_read_byte(); /* code - ignored */
-
-	enc_rx_read_intbe(); /* checksum - TODO */
+	/* TODO(?) verify checksum */
 
 	/* all fine, we got ping, we do pong
-	 * what follows now is len - 4 bytes that we just copy
+	 * we copy packet_len - 4 bytes of payload (sequence number etc)
 	 */
 
-	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH + 4);
-	for (int i = 0; i < packet_len; i++) {
-		uint8_t wat;
-		wat = enc_rx_read_byte();
-		enc_tx_write_byte(wat);
-	}
-
-	enc_rx_seek(ETH_HEADER_LENGTH + IPV4_HDR_OFF_SOURCE_IP);
-	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HDR_OFF_DEST_IP);
-	for (int i = 0; i < 4; i++) {
-		uint8_t wat;
-		wat = enc_rx_read_byte();
-		enc_tx_write_byte(wat);
-	}
+	enc_rxtx_copy(
+		ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH + 4,
+		ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH + 4,
+		packet_len - 4);
 
 	eth_tx_reply();
-	enc_rx_acknowledge();
+	eth_tx_type(ETHERTYPE_IPV4);
+
+	ipv4_tx_reply();
+	ipv4_tx_header(packet_len, IPPROTO_ICMP);
+	ipv4_tx_checksum();
 
 	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH);
 	enc_tx_write_byte(ICMP_ECHOREPLY);
 	enc_tx_write_byte(0);
-
-	enc_tx_checksum_icmp(packet_len);
-
-	enc_tx_seek(ETH_HEADER_LENGTH);
-	enc_tx_write_byte(0x45);
-	enc_tx_write_byte(0x00);
-	enc_tx_write_intbe(IPV4_HEADER_LENGTH + packet_len);
 	enc_tx_write_intbe(0);
-	enc_tx_write_intbe(0);
-	enc_tx_write_byte(255);
-	enc_tx_write_byte(1);
-	enc_tx_write_intbe(0);
-	enc_tx_write_buf(our_ipv4, 4);
 
-	enc_tx_checksum_ipv4();
+	uint16_t icmp_sum = enc_tx_checksum(ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH, packet_len);
+	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH + 2);
+	enc_tx_write_intbe(icmp_sum);
 
-	eth_tx_type(ETHERTYPE_IPV4);
-	enc_tx_do(IPV4_HEADER_LENGTH + packet_len); /* FIXME dat api */
+	enc_tx_do(IPV4_HEADER_LENGTH + packet_len);
 }
 

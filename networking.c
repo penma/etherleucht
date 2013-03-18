@@ -68,7 +68,7 @@ void enc_init() {
 
 void enc_rx_acknowledge() {
 	if (!pk_accepted) {
-		/* no packet to ack (it probably has been acked before */
+		/* no packet to ack (it probably has been acked before) */
 		return;
 	}
 
@@ -159,7 +159,7 @@ void enc_rx_seek(uint16_t pos) {
  */
 void enc_tx_seek(uint16_t pos) {
 	/* skip 1 control byte */
-	enc_reg_write16(EWRPTL, enc_address(TXSTART_INIT + 1, pos));
+	enc_reg_write16(EWRPTL, TXSTART_INIT + 1 + pos);
 }
 
 void enc_tx_write_byte(uint8_t c) {
@@ -220,7 +220,6 @@ void enc_tx_do(uint16_t len) {
 
 /* compute a checksum over some range in the buffer */
 static uint16_t enc_checksum(uint16_t start, uint16_t len) {
-
 	enc_reg_write16(EDMASTL, start);
 	enc_reg_write16(EDMANDL, enc_address(start, len - 1));
 
@@ -235,6 +234,10 @@ static uint16_t enc_checksum(uint16_t start, uint16_t len) {
 	}
 
 	return enc_reg_read16(EDMACSL);
+}
+
+uint16_t enc_tx_checksum(uint16_t start, uint16_t len) {
+	return enc_checksum(TXSTART_INIT + 1 + start, len);
 }
 
 #define IP_TTL 0xff
@@ -258,26 +261,6 @@ void enc_tx_header_udp(uint16_t len) {
 	enc_tx_write_intbe(sum);
 }
 
-void enc_tx_checksum_ipv4() {
-	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HDR_OFF_CHECKSUM);
-	enc_tx_write_intbe(0);
-
-	uint16_t sum = enc_checksum(TXSTART_INIT + 1 + ETH_HEADER_LENGTH, IPV4_HEADER_LENGTH);
-
-	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HDR_OFF_CHECKSUM);
-	enc_tx_write_intbe(sum);
-}
-
-void enc_tx_checksum_icmp(uint16_t len) {
-	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH + 2);
-	enc_tx_write_intbe(0);
-
-	uint16_t sum = enc_checksum(TXSTART_INIT + 1 + ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH, len);
-
-	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH + 2);
-	enc_tx_write_intbe(sum);
-}
-
 void enc_tx_header_ipv4() {
 	/* TODO complete more headers */
 
@@ -293,4 +276,21 @@ void enc_tx_header_ipv4() {
 
 	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HDR_OFF_CHECKSUM);
 	enc_tx_write_intbe(sum);
+}
+
+void enc_rxtx_copy(uint16_t rx_start, uint16_t tx_start, uint16_t len) {
+	enc_reg_write16(EDMASTL,  enc_address(packet_current, 6 + rx_start));
+	enc_reg_write16(EDMANDL,  enc_address(packet_current, 6 + rx_start + len));
+	enc_reg_write16(EDMADSTL, TXSTART_INIT + 1 + tx_start);
+
+	enc_op_write(ENC28J60_BIT_FIELD_CLR, ECON1, ECON1_CSUMEN);
+	enc_op_write(ENC28J60_BIT_FIELD_SET, ECON1, ECON1_DMAST);
+	uint16_t try = 0xffff;
+	while (!(enc_reg_read(EIR) & EIR_DMAIF)) {
+		try--;
+		if (try == 0) {
+			debug_fstr("Chksum timeout\n");
+			return;
+		}
+	}
 }

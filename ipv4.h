@@ -17,5 +17,8 @@
 
 extern uint8_t our_ipv4[4];
 void ipv4_handle();
+void ipv4_tx_reply();
+void ipv4_tx_header(uint16_t, uint8_t);
+void ipv4_tx_checksum();
 
 #endif

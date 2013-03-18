@@ -33,7 +33,7 @@ void enc_tx_header_ipv4();
 void enc_tx_checksum_ipv4();
 void enc_tx_checksum_icmp(uint16_t len);
 
-void _assert_spi_active(uint8_t act, uint16_t ln);
-#define assert_spi_active(act) _assert_spi_active(act, __LINE__)
+uint16_t enc_tx_checksum(uint16_t, uint16_t);
+void enc_rxtx_copy(uint16_t, uint16_t, uint16_t);
 
 #endif

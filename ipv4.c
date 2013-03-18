@@ -27,8 +27,6 @@ void ipv4_handle(uint16_t packet_len) {
 		/* something is not quite right here */
 		return;
 	}
-	// debug_dec16(len);
-	// debug_fstr("b ");
 
 	enc_rx_read_intbe(); /* fragment ID - ignored */
 	uint16_t frag = enc_rx_read_intbe();
@@ -54,8 +52,6 @@ void ipv4_handle(uint16_t packet_len) {
 		return;
 	}
 
-	// debug_fstr("for us!\n");
-
 	if (proto == IPPROTO_ICMP) {
 		icmp_handle(len);
 	} else {
@@ -63,5 +59,38 @@ void ipv4_handle(uint16_t packet_len) {
 		debug_hex8(proto);
 		debug_fstr("\n");
 	}
+}
+
+void ipv4_tx_reply() {
+	enc_rx_seek(ETH_HEADER_LENGTH + IPV4_HDR_OFF_SOURCE_IP);
+	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HDR_OFF_SOURCE_IP);
+
+	uint8_t sender[4];
+	enc_rx_read_buf(sender, 4);
+	enc_tx_write_buf(our_ipv4, 4);
+	enc_tx_write_buf(sender, 4);
+}
+
+void ipv4_tx_header(uint16_t payload_len, uint8_t proto) {
+	enc_tx_seek(ETH_HEADER_LENGTH);
+	enc_tx_write_byte(0x45);
+	enc_tx_write_byte(0x00);
+	enc_tx_write_intbe(IPV4_HEADER_LENGTH + payload_len);
+	enc_tx_write_intbe(0);
+	enc_tx_write_intbe(0);
+	enc_tx_write_byte(64);
+	enc_tx_write_byte(proto);
+	enc_tx_write_intbe(0);
+	enc_tx_write_buf(our_ipv4, 4);
+}
+
+void ipv4_tx_checksum() {
+	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HDR_OFF_CHECKSUM);
+	enc_tx_write_intbe(0);
+
+	uint16_t sum = enc_tx_checksum(ETH_HEADER_LENGTH, IPV4_HEADER_LENGTH);
+
+	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HDR_OFF_CHECKSUM);
+	enc_tx_write_intbe(sum);
 }
 

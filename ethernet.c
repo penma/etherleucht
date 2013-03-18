@@ -7,35 +7,28 @@
 uint8_t our_mac[6] = { 0x42, 0xcc, 0xcd, 0x00, 0x13, 0x37 };
 
 /* copy sender MAC of received packet to destination MAC of transmit packet,
+ * and our own MAC to source MAC.
  * i.e., prepare a reply packet
  */
 void eth_tx_reply() {
 	uint8_t sender[6];
 
-	enc_rx_seek(6);
-	for (int i = 0; i < 6; i++) {
-		sender[i] = enc_rx_read_byte();
-	}
+	enc_rx_seek(ETH_HDR_OFF_SOURCE);
+	enc_rx_read_buf(sender, 6);
 
-	enc_tx_seek(0);
-	for (int i = 0; i < 6; i++) {
-		enc_tx_write_byte(sender[i]);
-	}
+	enc_tx_seek(ETH_HDR_OFF_DEST);
+	enc_tx_write_buf(sender, 6);
+	enc_tx_write_buf(our_mac, 6);
 }
 
-/* copy our mac and an ethertype into the TX buffer */
+/* write ethertype into the TX buffer */
 void eth_tx_type(uint16_t ethertype) {
-	/* source address - that's us! */
-	enc_tx_seek(6);
-	enc_tx_write_buf(our_mac, 6);
-
-	/* ethertype */
+	enc_tx_seek(ETH_HDR_OFF_ETHERTYPE);
 	enc_tx_write_intbe(ethertype);
 }
 
 void eth_handle(uint16_t frame_length) {
-	/* check the ethertype */
-	enc_rx_seek(12);
+	enc_rx_seek(ETH_HDR_OFF_ETHERTYPE);
 	uint16_t ethertype = enc_rx_read_intbe();
 
 	if (ethertype == ETHERTYPE_ARP) {

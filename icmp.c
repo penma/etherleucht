@@ -10,7 +10,7 @@
 void icmp_handle(uint16_t packet_len) {
 	if (enc_rx_read_byte() != ICMP_ECHO) {
 		/* not an echo request */
-		goto ignore;
+		return;
 	}
 
 	enc_rx_read_byte(); /* code - ignored */
@@ -20,44 +20,32 @@ void icmp_handle(uint16_t packet_len) {
 	/* all fine, we got ping, we do pong
 	 * what follows now is len - 4 bytes that we just copy
 	 */
-	enc_rx_stop();
 
 	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH + 4);
 	for (int i = 0; i < packet_len; i++) {
 		uint8_t wat;
-		enc_rx_start();
 		wat = enc_rx_read_byte();
-		enc_rx_stop();
-		enc_tx_start();
 		enc_tx_write_byte(wat);
-		enc_tx_stop();
 	}
 
 	enc_rx_seek(ETH_HEADER_LENGTH + IPV4_HDR_OFF_SOURCE_IP);
 	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HDR_OFF_DEST_IP);
 	for (int i = 0; i < 4; i++) {
 		uint8_t wat;
-		enc_rx_start();
 		wat = enc_rx_read_byte();
-		enc_rx_stop();
-		enc_tx_start();
 		enc_tx_write_byte(wat);
-		enc_tx_stop();
 	}
 
 	eth_tx_reply();
 	enc_rx_acknowledge();
 
 	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH);
-	enc_tx_start();
 	enc_tx_write_byte(ICMP_ECHOREPLY);
 	enc_tx_write_byte(0);
-	enc_tx_stop();
 
 	enc_tx_checksum_icmp(packet_len);
 
 	enc_tx_seek(ETH_HEADER_LENGTH);
-	enc_tx_start();
 	enc_tx_write_byte(0x45);
 	enc_tx_write_byte(0x00);
 	enc_tx_write_intbe(IPV4_HEADER_LENGTH + packet_len);
@@ -68,16 +56,9 @@ void icmp_handle(uint16_t packet_len) {
 	enc_tx_write_intbe(0);
 	enc_tx_write_buf(our_ipv4, 4);
 
-	enc_tx_stop();
 	enc_tx_checksum_ipv4();
 
 	eth_tx_type(ETHERTYPE_IPV4);
 	enc_tx_do(IPV4_HEADER_LENGTH + packet_len); /* FIXME dat api */
-
-	return;
-ignore:
-	debug_fstr("ICMP IGNORED\n");
-	enc_rx_stop();
-	enc_rx_acknowledge();
 }
 

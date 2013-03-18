@@ -23,11 +23,28 @@
 
 #include "debug.h"
 
+void enc_spi_select(uint8_t act) __attribute__((always_inline));
 void enc_spi_select(uint8_t act) {
 	if (act) {
 		PORTA &= ~(1 << PA1);
 	} else {
 		PORTA |= (1 << PA1);
+	}
+}
+
+static enum enc_state active_command = CMD_IDLE;
+
+void enc_ensure_state(enum enc_state st) {
+	if (st != active_command) {
+		enc_spi_select(0);
+		if (st == CMD_READ) {
+			enc_spi_select(1);
+			spi_write(ENC28J60_READ_BUF_MEM);
+		} else if (st == CMD_WRITE) {
+			enc_spi_select(1);
+			spi_write(ENC28J60_WRITE_BUF_MEM);
+		}
+		active_command = st;
 	}
 }
 
@@ -37,6 +54,8 @@ void enc_spi_init() {
 }
 
 uint8_t enc_op_read(uint8_t op, uint8_t address) {
+	enc_ensure_state(CMD_IDLE);
+
 	enc_spi_select(1);
 
 	spi_write(op | (address & ADDR_MASK));
@@ -50,6 +69,8 @@ uint8_t enc_op_read(uint8_t op, uint8_t address) {
 }
 
 void enc_op_write(uint8_t op, uint8_t address, uint8_t data) {
+	enc_ensure_state(CMD_IDLE);
+
 	enc_spi_select(1);
 
 	spi_write(op | (address & ADDR_MASK));

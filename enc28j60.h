@@ -220,6 +220,8 @@
 
 #define	MAX_FRAMELEN	400	// maximum ethernet frame length
 
+enum enc_state { CMD_IDLE, CMD_READ, CMD_WRITE };
+void enc_ensure_state(enum enc_state);
 
 void enc_spi_select(uint8_t act);
 void enc_spi_init();

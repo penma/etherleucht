@@ -9,22 +9,6 @@
 
 static uint16_t packet_next, packet_current;
 
-void _assert_spi_active(uint8_t act, uint16_t ln) {
-	int should = act;
-	int is = !(PORTA & (1 << PA1));
-	if ( should != is ) {
-		debug_fstr("assert l");
-		debug_dec16(ln);
-		debug_fstr("\nfailed (should\nbe ");
-		if (act) {
-			debug_fstr("0)\n");
-		} else {
-			debug_fstr("1)\n");
-		}
-		while (1) {}
-	}
-}
-
 static uint8_t pk_accepted = 0;
 
 void enc_init() {
@@ -83,11 +67,11 @@ void enc_init() {
 }
 
 void enc_rx_acknowledge() {
-	assert_spi_active(0);
 	if (!pk_accepted) {
-		debug_fstr("no packet to ack!\n");
-		while (1) {}
+		/* no packet to ack (it probably has been acked before */
+		return;
 	}
+
 	pk_accepted = 0;
 	/* errata B7 #14: ERXRDPT must contain an odd value */
 	if (packet_next == RXST) {
@@ -99,36 +83,25 @@ void enc_rx_acknowledge() {
 	enc_op_write(ENC28J60_BIT_FIELD_SET, ECON2, ECON2_PKTDEC);
 }
 
-void enc_rx_start() {
-	assert_spi_active(0);
-	enc_spi_select(1);
-	spi_write(ENC28J60_READ_BUF_MEM);
-}
-
-void enc_rx_stop() {
-	assert_spi_active(1);
-	enc_spi_select(0);
-}
-
 uint8_t enc_rx_read_byte() {
-	assert_spi_active(1);
+	enc_ensure_state(CMD_READ);
 	return spi_read();
 }
 
 uint16_t enc_rx_read_intle() {
-	assert_spi_active(1);
+	enc_ensure_state(CMD_READ);
 	uint8_t low = spi_read();
 	return low | (spi_read() << 8);
 }
 
 uint16_t enc_rx_read_intbe() {
-	assert_spi_active(1);
+	enc_ensure_state(CMD_READ);
 	uint8_t high = spi_read();
 	return (high << 8) | spi_read();
 }
 
 void enc_rx_read_buf(uint8_t dst[], uint16_t len) {
-	assert_spi_active(1);
+	enc_ensure_state(CMD_READ);
 	for (uint16_t i = 0; i < len; i++) {
 		dst[i] = spi_read();
 	}
@@ -137,7 +110,6 @@ void enc_rx_read_buf(uint8_t dst[], uint16_t len) {
 
 /* check if there is a packet waiting to be processed. */
 uint8_t enc_rx_has_packet() {
-	assert_spi_active(0);
 	return enc_reg_read(EPKTCNT) != 0;
 }
 
@@ -146,7 +118,6 @@ uint8_t enc_rx_has_packet() {
  * will return payload length.
  */
 uint16_t enc_rx_accept_packet() {
-	assert_spi_active(0);
 	if (pk_accepted) {
 		debug_fstr("tried to accept\npacket twice!\n");
 		while (1) {}
@@ -157,7 +128,6 @@ uint16_t enc_rx_accept_packet() {
 	packet_current = packet_next;
 
 	/* read headers, update pointers */
-	enc_rx_start();
 	packet_next = enc_rx_read_intle();
 
 	uint16_t len = enc_rx_read_intle();
@@ -165,8 +135,6 @@ uint16_t enc_rx_accept_packet() {
 	// remove CRC from len (we don't read the CRC from
 	// the receive buffer
 	len -= 4;
-
-	enc_rx_stop();
 
 	return len;
 }
@@ -183,7 +151,6 @@ uint16_t enc_address(uint16_t base, uint16_t off) {
  * relative to current packet's payload
  */
 void enc_rx_seek(uint16_t pos) {
-	assert_spi_active(0);
 	enc_reg_write16(ERDPTL, enc_address(packet_current, 6 + pos));
 }
 
@@ -191,35 +158,23 @@ void enc_rx_seek(uint16_t pos) {
  * relative to packet payload
  */
 void enc_tx_seek(uint16_t pos) {
-	assert_spi_active(0);
 	/* skip 1 control byte */
 	enc_reg_write16(EWRPTL, enc_address(TXSTART_INIT + 1, pos));
 }
 
-void enc_tx_start() {
-	assert_spi_active(0);
-	enc_spi_select(1);
-	spi_write(ENC28J60_WRITE_BUF_MEM);
-}
-
-void enc_tx_stop() {
-	assert_spi_active(1);
-	enc_spi_select(0);
-}
-
 void enc_tx_write_byte(uint8_t c) {
-	assert_spi_active(1);
+	enc_ensure_state(CMD_WRITE);
 	spi_write(c);
 }
 
 void enc_tx_write_intbe(uint16_t c) {
-	assert_spi_active(1);
+	enc_ensure_state(CMD_WRITE);
 	spi_write(c >> 8);
 	spi_write(c & 0xff);
 }
 
 void enc_tx_write_buf(uint8_t src[], uint16_t len) {
-	assert_spi_active(1);
+	enc_ensure_state(CMD_WRITE);
 	for (uint16_t i = 0; i < len; i++) {
 		spi_write(src[i]);
 	}
@@ -240,9 +195,7 @@ void enc_tx_do(uint16_t len) {
 	enc_reg_write16(ETXNDL, TXSTART_INIT + len + ETH_HEADER_LENGTH);
 
 	enc_reg_write16(EWRPTL, TXSTART_INIT);
-	enc_tx_start();
 	enc_tx_write_byte(0);
-	enc_tx_stop();
 
 	/* finally, transmit */
 	enc_op_write(ENC28J60_BIT_FIELD_CLR, ESTAT, ESTAT_TXABRT);
@@ -291,52 +244,38 @@ void enc_tx_header_udp(uint16_t len) {
 	 * we vandalize parts of the IP header to do that
 	 */
 	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HDR_OFF_TTL);
-	enc_tx_start();
 	enc_tx_write_byte(0);
 	enc_tx_write_byte(IPPROTO_UDP);
 	enc_tx_write_intbe(len + 8);
-	enc_tx_stop();
 
 	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH + 4);
-	enc_tx_start();
 	enc_tx_write_intbe(len + 8);
 	enc_tx_write_intbe(0);
-	enc_tx_stop();
 
 	uint16_t sum = enc_checksum(TXSTART_INIT + 1 + ETH_HEADER_LENGTH + 8, IPV4_HEADER_LENGTH + len);
 
 	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH + 6);
-	enc_tx_start();
 	enc_tx_write_intbe(sum);
-	enc_tx_stop();
 }
 
 void enc_tx_checksum_ipv4() {
 	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HDR_OFF_CHECKSUM);
-	enc_tx_start();
 	enc_tx_write_intbe(0);
-	enc_tx_stop();
 
 	uint16_t sum = enc_checksum(TXSTART_INIT + 1 + ETH_HEADER_LENGTH, IPV4_HEADER_LENGTH);
 
 	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HDR_OFF_CHECKSUM);
-	enc_tx_start();
 	enc_tx_write_intbe(sum);
-	enc_tx_stop();
 }
 
 void enc_tx_checksum_icmp(uint16_t len) {
 	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH + 2);
-	enc_tx_start();
 	enc_tx_write_intbe(0);
-	enc_tx_stop();
 
 	uint16_t sum = enc_checksum(TXSTART_INIT + 1 + ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH, len);
 
 	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH + 2);
-	enc_tx_start();
 	enc_tx_write_intbe(sum);
-	enc_tx_stop();
 }
 
 void enc_tx_header_ipv4() {
@@ -346,16 +285,12 @@ void enc_tx_header_ipv4() {
 	 * restore some fields
 	 */
 	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HDR_OFF_TTL);
-	enc_tx_start();
 	enc_tx_write_byte(IP_TTL);
 	enc_tx_write_byte(IPPROTO_UDP);
 	enc_tx_write_intbe(0);
-	enc_tx_stop();
 
 	uint16_t sum = enc_checksum(TXSTART_INIT + 1 + ETH_HEADER_LENGTH, IPV4_HEADER_LENGTH);
 
 	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HDR_OFF_CHECKSUM);
-	enc_tx_start();
 	enc_tx_write_intbe(sum);
-	enc_tx_stop();
 }

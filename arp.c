@@ -14,32 +14,32 @@
 void arp_handle(uint16_t packet_len) {
 	if (packet_len < 28) {
 		/* too small for anything we will ever handle */
-		goto ignore;
+		return;
 	}
 
 	if (enc_rx_read_intbe() != ARPHRD_ETHER) {
 		/* not ethernet */
-		goto ignore;
+		return;
 	}
 
 	if (enc_rx_read_intbe() != ETHERTYPE_IPV4) {
 		/* not ipv4 */
-		goto ignore;
+		return;
 	}
 
 	if (enc_rx_read_byte() != 6) {
 		/* wrong mac address length */
-		goto ignore;
+		return;
 	}
 
 	if (enc_rx_read_byte() != 4) {
 		/* wrong v4 address length */
-		goto ignore;
+		return;
 	}
 
 	if (enc_rx_read_intbe() != ARPOP_REQUEST) {
 		/* not an arp request */
-		goto ignore;
+		return;
 	}
 
 	/* read the rest of the packet */
@@ -54,18 +54,14 @@ void arp_handle(uint16_t packet_len) {
 	/* is it for us? */
 	if (memcmp(target_proto, our_ipv4, 4)) {
 		/* no */
-		goto ignore;
+		return;
 	}
 
 	/* yes! */
-	enc_rx_stop();
-
 	eth_tx_reply();
 	eth_tx_type(ETHERTYPE_ARP);
-	enc_rx_acknowledge();
 
 	enc_tx_seek(ETH_HEADER_LENGTH);
-	enc_tx_start();
 
 	enc_tx_write_intbe(ARPHRD_ETHER);
 	enc_tx_write_intbe(ETHERTYPE_IPV4);
@@ -77,13 +73,7 @@ void arp_handle(uint16_t packet_len) {
 	enc_tx_write_buf(our_ipv4, 4);
 	enc_tx_write_buf(sender_hw, 6);
 	enc_tx_write_buf(sender_proto, 4);
-	enc_tx_stop();
 
 	enc_tx_do(ARP_LENGTH);
-
-	return;
-ignore:
-	enc_rx_stop();
-	enc_rx_acknowledge();
 }
 

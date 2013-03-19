@@ -3,6 +3,7 @@
 #include "ethernet.h"
 #include "ipv4.h"
 #include "icmp.h"
+#include "udp.h"
 #include "debug.h"
 
 #include <string.h>
@@ -55,6 +56,8 @@ void ipv4_handle(uint16_t packet_len) {
 
 	if (proto == IPPROTO_ICMP) {
 		icmp_handle(len);
+	} else if (proto == IPPROTO_UDP) {
+		udp_handle(len);
 	} else {
 		debug_fstr("unhandled\nproto ");
 		debug_hex8(proto);

@@ -243,44 +243,6 @@ uint16_t enc_tx_checksum(uint16_t start, uint16_t len) {
 	return enc_checksum(TXSTART_INIT + 1 + start, len);
 }
 
-#define IP_TTL 0xff
-
-void enc_tx_header_udp(uint16_t len) {
-	/* we need to compute the checksum over the pseudo header
-	 * we vandalize parts of the IP header to do that
-	 */
-	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HDR_OFF_TTL);
-	enc_tx_write_byte(0);
-	enc_tx_write_byte(IPPROTO_UDP);
-	enc_tx_write_intbe(len + 8);
-
-	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH + 4);
-	enc_tx_write_intbe(len + 8);
-	enc_tx_write_intbe(0);
-
-	uint16_t sum = enc_checksum(TXSTART_INIT + 1 + ETH_HEADER_LENGTH + 8, IPV4_HEADER_LENGTH + len);
-
-	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH + 6);
-	enc_tx_write_intbe(sum);
-}
-
-void enc_tx_header_ipv4() {
-	/* TODO complete more headers */
-
-	/* our header may have been vandalized by udp checksum computation.
-	 * restore some fields
-	 */
-	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HDR_OFF_TTL);
-	enc_tx_write_byte(IP_TTL);
-	enc_tx_write_byte(IPPROTO_UDP);
-	enc_tx_write_intbe(0);
-
-	uint16_t sum = enc_checksum(TXSTART_INIT + 1 + ETH_HEADER_LENGTH, IPV4_HEADER_LENGTH);
-
-	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HDR_OFF_CHECKSUM);
-	enc_tx_write_intbe(sum);
-}
-
 void enc_rxtx_copy(uint16_t rx_start, uint16_t tx_start, uint16_t len) {
 	enc_reg_write16(EDMASTL,  enc_address(packet_current, 6 + rx_start));
 	enc_reg_write16(EDMANDL,  enc_address(packet_current, 6 + rx_start + len));

@@ -66,6 +66,40 @@ void enc_init() {
 	enc_phy_write(PHLCON, 0xc1a);
 }
 
+/* check if there is a packet waiting to be processed. */
+uint8_t enc_rx_has_packet() {
+	return enc_reg_read(EPKTCNT) != 0;
+}
+
+/* accept a pending packet.
+ * also read the status headers, update next/current packet pointers.
+ * will return payload length.
+ */
+uint16_t enc_rx_accept_packet() {
+	if (pk_accepted) {
+		debug_fstr("tried to accept\npacket twice!\n");
+		while (1) {}
+	}
+	pk_accepted = 1;
+	/* set read pointer to start of new packet */
+	enc_reg_write16(ERDPTL, packet_next);
+	packet_current = packet_next;
+
+	/* read headers, update pointers */
+	packet_next = enc_rx_read_intle();
+
+	uint16_t len = enc_rx_read_intle();
+
+	// remove CRC from len (we don't read the CRC from
+	// the receive buffer
+	len -= 4;
+
+	return len;
+}
+
+/* free buffer space used by current packet.
+ * may be called more than once per packet
+ */
 void enc_rx_acknowledge() {
 	if (!pk_accepted) {
 		/* no packet to ack (it probably has been acked before) */
@@ -107,37 +141,6 @@ void enc_rx_read_buf(uint8_t dst[], uint16_t len) {
 	}
 }
 
-
-/* check if there is a packet waiting to be processed. */
-uint8_t enc_rx_has_packet() {
-	return enc_reg_read(EPKTCNT) != 0;
-}
-
-/* accept a pending packet.
- * also read the status headers, update next/current packet pointers.
- * will return payload length.
- */
-uint16_t enc_rx_accept_packet() {
-	if (pk_accepted) {
-		debug_fstr("tried to accept\npacket twice!\n");
-		while (1) {}
-	}
-	pk_accepted = 1;
-	/* set read pointer to start of new packet */
-	enc_reg_write16(ERDPTL, packet_next);
-	packet_current = packet_next;
-
-	/* read headers, update pointers */
-	packet_next = enc_rx_read_intle();
-
-	uint16_t len = enc_rx_read_intle();
-
-	// remove CRC from len (we don't read the CRC from
-	// the receive buffer
-	len -= 4;
-
-	return len;
-}
 
 uint16_t enc_address(uint16_t base, uint16_t off) {
 	uint16_t addr = base + off;

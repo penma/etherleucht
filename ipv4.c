@@ -1,5 +1,6 @@
 #include "enc28j60.h"
 #include "networking.h"
+#include "ethernet.h"
 #include "ipv4.h"
 #include "icmp.h"
 #include "debug.h"
@@ -62,6 +63,9 @@ void ipv4_handle(uint16_t packet_len) {
 }
 
 void ipv4_tx_reply() {
+	eth_tx_reply();
+	eth_tx_type(ETHERTYPE_IPV4);
+
 	enc_rx_seek(ETH_HEADER_LENGTH + IPV4_HDR_OFF_SOURCE_IP);
 	enc_tx_seek(ETH_HEADER_LENGTH + IPV4_HDR_OFF_SOURCE_IP);
 

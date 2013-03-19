@@ -24,9 +24,6 @@ void icmp_handle(uint16_t packet_len) {
 		ETH_HEADER_LENGTH + IPV4_HEADER_LENGTH + 4,
 		packet_len - 4);
 
-	eth_tx_reply();
-	eth_tx_type(ETHERTYPE_IPV4);
-
 	ipv4_tx_reply();
 	ipv4_tx_header(packet_len, IPPROTO_ICMP);
 	ipv4_tx_checksum();
